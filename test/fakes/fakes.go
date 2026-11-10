@@ -228,3 +228,46 @@ func IDs(prefix string) func() string {
 		return fmt.Sprintf("%s%04d", prefix, n)
 	}
 }
+
+// ScriptedLLM replays a fixed sequence of assistant turns.
+type ScriptedLLM struct {
+	mu      sync.Mutex
+	Turns   []core.LlmTurn
+	Sent    []string
+	Results [][]core.LlmToolResult
+	System  string
+	Tools   []core.LlmTool
+	i       int
+}
+
+func (s *ScriptedLLM) Name() string { return "scripted" }
+
+func (s *ScriptedLLM) NewConversation(system string, tools []core.LlmTool, _ int) core.LlmConversation {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.System, s.Tools = system, tools
+	return s
+}
+
+func (s *ScriptedLLM) next() (core.LlmTurn, error) {
+	if s.i >= len(s.Turns) {
+		return core.LlmTurn{StopReason: core.StopEndTurn, Text: "(script exhausted)"}, nil
+	}
+	t := s.Turns[s.i]
+	s.i++
+	return t, nil
+}
+
+func (s *ScriptedLLM) Send(_ context.Context, text string) (core.LlmTurn, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Sent = append(s.Sent, text)
+	return s.next()
+}
+
+func (s *ScriptedLLM) SendToolResults(_ context.Context, r []core.LlmToolResult) (core.LlmTurn, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Results = append(s.Results, r)
+	return s.next()
+}

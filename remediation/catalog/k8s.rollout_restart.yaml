@@ -1,0 +1,18 @@
+# Version-controlled action catalog entry. Changes require SRE lead review (CODEOWNERS).
+id: k8s.rollout_restart
+description: Restart a Deployment's pods via a rolling restart.
+provider: kubernetes
+verb: rollout_restart
+risk: low
+params:
+  cluster:    {type: string, required: true, pattern: "[a-z0-9-]{1,63}"}
+  namespace:  {type: string, required: true, pattern: "[a-z0-9-]{1,63}"}
+  deployment: {type: string, required: true, pattern: "[a-z0-9-]{1,253}"}
+# "*" defers to the kubernetes.clusters[].namespaces allow-list in config,
+# which is always enforced by the adapter. Narrow these per deployment.
+allowedScopes:
+  clusters: ["*"]
+  namespaces: ["*"]
+verify:
+  type: rollout_status
+  timeout: 5m

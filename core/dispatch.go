@@ -487,6 +487,26 @@ func (s *Service) HandleInteraction(ctx context.Context, cc CommandContext, acti
 	case "dismiss_signal":
 		s.log.Info("proposal dismissed", "signal", value, "by", cc.Actor.Email)
 		return Message{Text: fmt.Sprintf("Dismissed by %s", displayUser(cc.Actor))}, nil
+	case "request_action":
+		// From a triage recommendation: creates an ActionRequest that still
+		// needs approval. Triage itself can never execute anything.
+		if s.Remediate == nil {
+			return Message{}, userErr("remediation is not configured")
+		}
+		var v struct {
+			I string            `json:"i"`
+			A string            `json:"a"`
+			P map[string]string `json:"p"`
+		}
+		if err := json.Unmarshal([]byte(value), &v); err != nil {
+			return Message{}, userErr("malformed action button")
+		}
+		inc, err := s.store.GetIncident(ctx, v.I)
+		if err != nil {
+			return Message{}, userErr("incident not found")
+		}
+		_, m, err := s.Remediate.Request(ctx, inc, cc.Actor, v.A, v.P, "triage")
+		return m, err
 	case "approve_action", "deny_action":
 		if s.Remediate == nil {
 			return Message{}, userErr("remediation is not configured")

@@ -1,0 +1,16 @@
+id: k8s.scale_deployment
+description: Scale a Deployment to a bounded replica count.
+provider: kubernetes
+verb: scale
+risk: medium
+params:
+  cluster:    {type: string, required: true, pattern: "[a-z0-9-]{1,63}"}
+  namespace:  {type: string, required: true, pattern: "[a-z0-9-]{1,63}"}
+  deployment: {type: string, required: true, pattern: "[a-z0-9-]{1,253}"}
+  replicas:   {type: integer, required: true, min: 1, max: 50}
+allowedScopes:
+  clusters: ["*"]
+  namespaces: ["*"]
+verify:
+  type: rollout_status
+  timeout: 5m

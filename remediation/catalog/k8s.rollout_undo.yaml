@@ -1,0 +1,16 @@
+id: k8s.rollout_undo
+description: Roll a Deployment back to its previous (or a given) revision.
+provider: kubernetes
+verb: rollout_undo
+risk: high
+params:
+  cluster:    {type: string, required: true, pattern: "[a-z0-9-]{1,63}"}
+  namespace:  {type: string, required: true, pattern: "[a-z0-9-]{1,63}"}
+  deployment: {type: string, required: true, pattern: "[a-z0-9-]{1,253}"}
+  toRevision: {type: integer, required: false, min: 1, max: 100000}
+allowedScopes:
+  clusters: ["*"]
+  namespaces: ["*"]
+verify:
+  type: rollout_status
+  timeout: 10m
