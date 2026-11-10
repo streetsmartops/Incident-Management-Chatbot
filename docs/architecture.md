@@ -3,6 +3,9 @@
 Status: **APPROVED (2026-11-10) — v1 implemented.** Changes made after approval are marked *(post-approval)*.
 Owner: Platform/SRE · Last updated: 2026-11-10
 
+Rendered diagrams (architecture, deployment, data flows, sequences, data model): [diagrams.md](diagrams.md).
+Other docs: [docs/README.md](README.md).
+
 Conventions: `UNVERIFIED` = a vendor detail I could not check against primary docs in this
 session (doc hosts for Slack, PagerDuty and Microsoft were blocked by the network policy).
 Everything about Multiplexer is verified from its source code (commit `e14d5ca`, `main`).

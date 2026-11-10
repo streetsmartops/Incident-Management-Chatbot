@@ -31,3 +31,4 @@ jobs:
       - run: pip install pytest==8.3.4
       - run: python -m pytest -q eval/tests
       - run: python eval/gen_synthetic.py /tmp/fx && diff -r /tmp/fx test/fixtures/incidents
+      - run: python deploy/dashboards/gen_dashboards.py && git diff --exit-code deploy/

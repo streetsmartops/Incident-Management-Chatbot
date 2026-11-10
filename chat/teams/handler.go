@@ -81,6 +81,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusOK)
+	// Logged so admins can find teams.announceConversationId / announceServiceUrl.
+	h.Log.Info("teams activity", "type", act.Type, "conversation_id", act.Conversation.ID, "service_url", act.ServiceURL)
 	if act.Type != "message" {
 		return
 	}
