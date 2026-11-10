@@ -1,0 +1,27 @@
+%% Signal ingest and declaration data flow
+flowchart TB
+  classDef src fill:#eef2ff,stroke:#6366f1,color:#111
+  classDef step fill:#fff,stroke:#64748b,color:#111
+  classDef dec fill:#fff7ed,stroke:#ea580c,color:#111
+  classDef out fill:#f0fdf4,stroke:#16a34a,color:#111
+
+  subgraph sources[" "]
+    direction LR
+    M["Multiplexer guardrail status"]:::src --> POLL["Poller (60 s)<br/>send on change, or while non-ok<br/>with no open incident"]:::step
+    W["PagerDuty webhook v3"]:::src --> VER["Verify X-PagerDuty-Signature<br/>(HMAC-SHA256)"]:::step --> NORM["Normalise: incident_key or<br/>'SLO Breach: name' → guardrail ID"]:::step
+  end
+  POLL --> SIG(["core.Signal: source · dedupKey · sloStatus · service"])
+  NORM --> SIG
+  SIG --> ENR["Enrich via SloSource: status, tenant tier · store in signals table"]:::step
+  ENR --> OPEN{"Open incident with<br/>same dedupKey?"}:::dec
+  OPEN -- yes --> ATT["Attach to timeline<br/>ack → acknowledgedAt · recovery → nudge IC"]:::out
+  OPEN -- no --> OK{"Status ok /<br/>resolved?"}:::dec
+  OK -- yes --> REARM["Reset streak · re-arm auto-declare"]:::step
+  OK -- no --> SUP{"Same breach as a<br/>resolved incident?"}:::dec
+  SUP -- yes --> IGN["Ignore until the SLO recovers"]:::step
+  SUP -- no --> CLS["Count consecutive observations<br/>severity = matrix[status][tier], +1 if ≥ 3 tenants"]:::step
+  CLS --> AUTO{"SEV1/2 · known tier · ≥ 2 evaluations ·<br/>not timeout / no_data?"}:::dec
+  AUTO -- yes --> DECL["Auto-declare"]:::out
+  AUTO -- "no (first observation of streak)" --> PROP["Proposal card: Declare / Dismiss"]:::out
+  DECL --> FX["War room · invite on-call · page PagerDuty · Jira ticket · announce · timeline"]:::out
+  PROP -- "human clicks Declare" --> FX

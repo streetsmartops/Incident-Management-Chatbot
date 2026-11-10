@@ -1,0 +1,54 @@
+erDiagram
+  incidents ||--o{ timeline_events : "append-only, hash-chained"
+  incidents ||--o{ action_requests : has
+  incidents ||--o| postmortems : has
+  incidents }o--o{ signals : "dedup_keys"
+  incidents {
+    text id PK
+    text key UK "INC-YYYY-NNNN"
+    text state
+    smallint severity
+    text[] dedup_keys
+    text war_room_platform
+    text war_room_id
+    jsonb data "roles, refs, timestamps"
+  }
+  timeline_events {
+    text incident_id PK
+    bigint seq PK
+    timestamptz at
+    text actor_type
+    text actor_id
+    text kind
+    text payload "exact hashed bytes"
+    text prev_hash
+    text hash
+  }
+  signals {
+    text id PK
+    text dedup_key
+    timestamptz observed_at
+    jsonb data
+  }
+  observations {
+    text dedup_key PK
+    text status
+    int count "consecutive"
+  }
+  action_requests {
+    text id PK
+    text incident_id FK
+    jsonb data "params, risk, approvals, status"
+  }
+  postmortems {
+    text incident_id PK
+    jsonb data "sections, metrics, action items"
+  }
+  flags {
+    text name PK "remediation_enabled, suppress:*"
+    boolean value
+  }
+  incident_counters {
+    int year PK
+    int n
+  }

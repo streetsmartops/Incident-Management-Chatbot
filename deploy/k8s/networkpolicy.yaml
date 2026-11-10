@@ -1,0 +1,20 @@
+# Restrict inbound traffic: app port from the ingress controller only,
+# metrics port from the monitoring namespace only. Adjust namespace labels.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: incidentd
+  namespace: incidentd
+spec:
+  podSelector:
+    matchLabels: {app: incidentd}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: ingress-nginx}
+      ports: [{port: 8080, protocol: TCP}]
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: monitoring}
+      ports: [{port: 9090, protocol: TCP}]

@@ -1,0 +1,31 @@
+%% Human-in-the-loop remediation
+sequenceDiagram
+  autonumber
+  actor R as Requester
+  actor IC as Incident commander
+  actor O as Service owner
+  participant E as remediation.Engine
+  participant TL as Timeline (hash-chained)
+  participant K as Kubernetes
+  R->>E: run k8s.rollout_undo … (or click triage suggestion)
+  E->>E: catalog lookup · param schema · allowed scopes
+  E->>K: DryRun (read-only, client-side diff)
+  E->>TL: action_requested · action_dry_run
+  E-->>R: approval card (diff, risk=high, expiry 15 min)
+  R->>E: Approve
+  E-->>R: refused: requester cannot approve
+  IC->>E: Approve
+  E->>TL: action_approved (role=ic)
+  O->>E: Approve
+  E->>TL: action_approved (role=service_owner)
+  E->>TL: re-read + verify hash chain, rebuild approvals
+  alt approvals in timeline do not satisfy policy
+    E-->>O: refuse to execute
+  else kill switch off (env REMEDIATION_ENABLED or DB flag)
+    E->>TL: note: dry-run only
+    E-->>O: approved, no change made (manual steps shown)
+  else both keys on
+    E->>K: Execute (patch / scale)
+    E->>K: Verify rollout
+    E->>TL: action_executed · action_verified
+  end

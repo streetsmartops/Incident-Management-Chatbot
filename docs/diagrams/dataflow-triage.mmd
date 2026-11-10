@@ -1,0 +1,27 @@
+%% AI triage data flow and trust boundaries
+flowchart TB
+  classDef trust fill:#f0fdf4,stroke:#16a34a,color:#111
+  classDef untrusted fill:#fef2f2,stroke:#dc2626,color:#111
+  classDef llm fill:#fff7ed,stroke:#ea580c,color:#111
+
+  REQ["/incident triage (human)"]:::trust --> LOOP
+  subgraph T["Trusted: incidentd process"]
+    LOOP["Agent loop · budget 15 tool calls / 90 s"]:::trust
+    EXEC["Read-only tool executor<br/>only tools the configured adapters support"]:::trust
+    RED["Redactor: tokens · keys · JWTs · URL userinfo ·<br/>passwords · emails → hashed"]:::trust
+    WRAP["Wrap as &lt;tool_output&gt; untrusted data · truncate 8 KB"]:::trust
+    VAL["Validate in code: strict schema · citations must match real<br/>call IDs · catalog IDs only · risk taken from catalog"]:::trust
+    OUT["Timeline: triage_result · chat card with 'Request action'<br/>(creates an ActionRequest that still needs human approval)"]:::trust
+  end
+  subgraph U["Untrusted data"]
+    direction LR
+    DDG["Datadog metrics / logs / events"]:::untrusted
+    K8["Kubernetes events / logs / rollouts"]:::untrusted
+    SLO["Multiplexer SLO status"]:::untrusted
+  end
+  API["Anthropic API: sees only redacted, wrapped data"]:::llm
+
+  LOOP -- tool calls --> EXEC --> U
+  U --> RED --> WRAP --> API
+  API -- next tool calls --> LOOP
+  API -- submit_triage --> VAL --> OUT

@@ -1,0 +1,22 @@
+# Public ingress: expose ONLY the routes Slack, Teams and PagerDuty call.
+# /admin/*, /healthz, /readyz and the metrics port stay cluster-internal.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: incidentd
+  namespace: incidentd
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt # adjust to your issuer
+spec:
+  ingressClassName: nginx # adjust to your controller
+  tls:
+    - hosts: [incidentd.example.com]
+      secretName: incidentd-tls
+  rules:
+    - host: incidentd.example.com
+      http:
+        paths:
+          - {path: /slack/commands, pathType: Exact, backend: {service: {name: incidentd, port: {name: http}}}}
+          - {path: /slack/interactivity, pathType: Exact, backend: {service: {name: incidentd, port: {name: http}}}}
+          - {path: /teams/messages, pathType: Exact, backend: {service: {name: incidentd, port: {name: http}}}}
+          - {path: /webhooks/pagerduty, pathType: Exact, backend: {service: {name: incidentd, port: {name: http}}}}

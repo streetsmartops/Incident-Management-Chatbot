@@ -1,0 +1,36 @@
+%% Kubernetes deployment topology
+flowchart TB
+  classDef pub fill:#fef3c7,stroke:#d97706,color:#111
+  classDef int fill:#e0f2fe,stroke:#0284c7,color:#111
+  classDef sec fill:#fee2e2,stroke:#dc2626,color:#111
+  classDef ext fill:#eef2ff,stroke:#6366f1,color:#111
+
+  INET(["Slack · Teams · PagerDuty<br/>(internet)"]):::ext
+  subgraph cluster["Kubernetes cluster"]
+    ING["Ingress + TLS<br/>only: /slack/* /teams/messages<br/>/webhooks/pagerduty"]:::pub
+    subgraph ns["namespace: incidentd"]
+      SVC["Service incidentd :80 → 8080"]:::int
+      MSVC["Service incidentd-metrics :9090<br/>(cluster-internal)"]:::int
+      P1["Pod incidentd #1<br/>:8080 app · :9090 metrics"]:::int
+      P2["Pod incidentd #2"]:::int
+      CM["ConfigMap incidentd-config<br/>(non-secret YAML)"]:::int
+      SEC["Secret incidentd-secrets<br/>mounted as files (*_FILE)"]:::sec
+      SA["ServiceAccount incidentd"]:::sec
+    end
+    subgraph apps["allowed app namespaces (e.g. checkout)"]
+      RB["RoleBinding → ClusterRole incidentd-read<br/>get/list/watch pods, logs, events,<br/>deployments, replicasets"]:::sec
+      RR["Role incidentd-remediate<br/>(shipped, NOT applied in v1)"]:::sec
+    end
+    PROM["Prometheus (ServiceMonitor)<br/>or Datadog Agent (annotation)"]:::int
+  end
+  PG[("PostgreSQL 16<br/>schema incident_bot")]:::int
+  OUT(["Outbound HTTPS:<br/>api.pagerduty.com · api.datadoghq.com<br/>*.atlassian.net · api.anthropic.com<br/>Multiplexer · Slack/Bot Framework APIs"]):::ext
+
+  INET --> ING --> SVC --> P1 & P2
+  CM --> P1 & P2
+  SEC --> P1 & P2
+  SA --> RB
+  SA -.-> RR
+  P1 & P2 --> PG
+  P1 & P2 --> OUT
+  PROM --> MSVC --> P1 & P2

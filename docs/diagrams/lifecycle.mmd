@@ -1,0 +1,21 @@
+stateDiagram-v2
+  [*] --> detected
+  detected --> declared
+  detected --> dismissed
+  declared --> investigating
+  declared --> resolved : false alarm
+  investigating --> identified
+  investigating --> mitigating
+  investigating --> resolved
+  identified --> mitigating
+  identified --> resolved
+  mitigating --> monitoring
+  mitigating --> investigating : mitigation failed
+  monitoring --> resolved
+  monitoring --> investigating : regression
+  resolved --> postmortem : postmortem draft
+  resolved --> investigating : reopen ≤ 72 h
+  resolved --> closed : SEV3/4 only
+  postmortem --> closed : postmortem publish
+  dismissed --> [*]
+  closed --> [*]

@@ -1,0 +1,20 @@
+%% Slack slash command flow
+sequenceDiagram
+  autonumber
+  actor U as Responder
+  participant S as Slack
+  participant H as incidentd /slack/commands
+  participant C as core.Service
+  participant DB as Postgres
+  participant V as PagerDuty / Jira
+  U->>S: /incident declare "Checkout 500s" --sev 2
+  S->>H: POST form + X-Slack-Signature, timestamp
+  H->>H: verify v0 HMAC-SHA256, reject if skew > 5 min
+  H-->>S: 200 "Working on declare…" (within 3 s)
+  H->>S: users.info → email (identity mapping)
+  H->>C: Execute(declare)
+  C->>DB: create incident · timeline: detected, declared, role_assigned
+  C->>S: conversations.create / invite / setTopic
+  C->>V: page on-call (SEV ≤ 2) · create ticket (SEV ≤ 3)
+  C->>DB: timeline: war_room_created, paged, ticket_created
+  H->>S: POST response_url (in_channel reply)
