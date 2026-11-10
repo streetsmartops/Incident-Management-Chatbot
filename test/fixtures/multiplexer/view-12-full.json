@@ -1,0 +1,5 @@
+{"id": 12, "name": "Acme production", "view_services": [
+  {"id": 31, "view_id": 12, "service_id": 5, "include_service_node": true, "display_order": 0, "created_at": "2026-05-01T00:00:00.000Z",
+   "service": {"id": 5, "name": "checkout", "owner": "checkout-owner@example.com", "tags": [], "created_at": "2026-05-01T00:00:00.000Z", "updated_at": "2026-05-01T00:00:00.000Z"},
+   "components": [], "direct_monitors": []}
+], "service_groups": [], "summary": {"total_services": 1}}

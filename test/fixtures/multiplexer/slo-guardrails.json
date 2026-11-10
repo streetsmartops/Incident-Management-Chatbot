@@ -1,0 +1,12 @@
+[
+  {"id": 7, "name": "Checkout availability", "description": "EU checkout", "view_service_id": 31, "component_id": null,
+   "target_uptime_percent": 99.9, "evaluation_window_hours": 720, "burn_rate_warning_threshold": 2, "burn_rate_critical_threshold": 5,
+   "no_data_timeout_minutes": 10, "notify_statuspage": false, "statuspage_component_id": null, "notify_pagerduty": true,
+   "pagerduty_service_key": "R0UTINGKEYSHOULDNOTBEHERE", "notify_jira": false, "jira_project_key": null, "jira_issue_type": null,
+   "is_active": true, "current_status": "breached", "last_evaluated_at": "2026-11-10T02:59:00.000Z", "last_notification_at": "2026-11-10T02:58:00.000Z",
+   "active_incident_id": null, "active_jira_ticket": null, "created_at": "2026-05-01T00:00:00.000Z", "updated_at": "2026-11-10T02:59:00.000Z"},
+  {"id": 9, "name": "Search latency", "view_service_id": 44, "component_id": 3, "target_uptime_percent": 99.5, "evaluation_window_hours": 168,
+   "burn_rate_warning_threshold": 2, "burn_rate_critical_threshold": 5, "no_data_timeout_minutes": 10, "notify_statuspage": false,
+   "notify_pagerduty": false, "notify_jira": false, "is_active": true, "current_status": "ok", "last_evaluated_at": null,
+   "created_at": "2026-05-01T00:00:00.000Z", "updated_at": "2026-05-01T00:00:00.000Z"}
+]

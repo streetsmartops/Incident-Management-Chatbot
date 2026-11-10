@@ -1,0 +1,90 @@
+# incidentd configuration (non-secret settings only).
+# Secrets are read from env vars or NAME_FILE mounts - see README "Secrets".
+server:
+  listen: ":8080"
+logLevel: info
+
+database:
+  driver: postgres          # postgres | memory (memory: local dev only, no persistence)
+  schema: incident_bot      # dedicated schema; DSN from DATABASE_URL
+
+incident:
+  defaultPlatform: slack
+  warRoomPrefix: "inc-"
+  privateByDefault: false   # war rooms are public by default; `declare --private` overrides
+  pageAtOrAbove: 2          # page PagerDuty for SEV1-SEV2 (0 = never)
+  ticketAtOrAbove: 3        # file a Jira ticket for SEV1-SEV3 (0 = never)
+  statusCadence:            # stakeholder update cadence per severity
+    1: 30m
+    2: 60m
+  admins: []                # emails that may act as IC on any incident
+
+# Company severity policy (optional). Empty = built-in default matrix.
+severityPolicyFile: ""      # e.g. config/severity-policy.yaml
+
+slack:
+  enabled: true
+  announceChannelId: ""     # channel for proposals and announcements, e.g. C0123456789
+
+teams:
+  enabled: false            # optional
+  appId: ""
+  tenantId: ""              # empty = multi-tenant bot
+  announceConversationId: ""
+  announceServiceUrl: ""
+
+pagerduty:
+  enabled: false
+  apiUrl: https://api.pagerduty.com
+  fromEmail: ""             # PagerDuty user email used in the From header for writes
+  defaultService: ""        # PagerDuty service ID used when no mapping matches
+  services: {}              # our-service-name: PXXXXXX
+
+datadog:
+  enabled: false
+  site: datadoghq.com       # datadoghq.eu, us3.datadoghq.com, us5.datadoghq.com, ap1.datadoghq.com …
+
+jira:
+  enabled: false
+  baseUrl: ""               # https://your-org.atlassian.net
+  email: ""                 # account email paired with JIRA_API_TOKEN
+  projectKey: ""            # e.g. OPS
+  issueType: Incident
+  actionItemIssueType: Task
+
+kubernetes:
+  enabled: false            # read-only in v1
+  clusters: []
+  # - name: prod-eu-1
+  #   inCluster: false
+  #   kubeconfigPath: /etc/incidentd/kubeconfig/prod-eu-1
+  #   context: prod-eu-1
+  #   namespaces: ["checkout", "payments-*"]
+
+multiplexer:
+  enabled: false
+  baseUrl: ""               # https://multiplexer.internal
+  pollInterval: 60s
+
+llm:
+  enabled: false
+  provider: anthropic       # anthropic (v1) | bedrock | vertex (stubs, v2)
+  model: claude-opus-5-5
+  effort: high
+  maxTokens: 16000
+  fallbacks: default        # server-side refusal fallback; "off" to disable
+  baseUrl: ""               # optional private endpoint / egress gateway
+  triage:
+    maxToolCalls: 15
+    timeout: 90s
+    maxToolOutputBytes: 8192
+    lookbackWindow: 2h
+
+redaction:
+  hashEmails: true
+  extraPatterns: []
+
+remediation:
+  catalogDir: remediation/catalog
+  approvalTTL: 15m
+  serviceOwners: {}         # service: owner@example.com (second approver for high risk)

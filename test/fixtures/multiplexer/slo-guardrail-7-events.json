@@ -1,0 +1,14 @@
+{"guardrail_id": 7, "events": [
+  {"id": 103, "slo_guardrail_id": 7, "event_type": "status_change", "previous_status": "at_risk", "new_status": "breached",
+   "uptime_percent": 99.71, "burn_rate": 5.8, "error_budget_remaining_percent": 12.5,
+   "message": "SLO guardrail \"Checkout availability\" is BREACHED.", "notification_sent": true,
+   "notification_results": [{"channel": "pagerduty", "success": true, "external_id": "slo-guardrail-7"}], "created_at": "2026-11-10T02:58:00.000Z"},
+  {"id": 101, "slo_guardrail_id": 7, "event_type": "status_change", "previous_status": "ok", "new_status": "at_risk",
+   "uptime_percent": 99.85, "burn_rate": 2.4, "error_budget_remaining_percent": 31.0,
+   "message": "SLO guardrail \"Checkout availability\" is AT_RISK.", "notification_sent": true, "notification_results": null,
+   "created_at": "2026-11-10T02:30:00.000Z"},
+  {"id": 90, "slo_guardrail_id": 7, "event_type": "recovery", "previous_status": "at_risk", "new_status": "ok",
+   "uptime_percent": 99.95, "burn_rate": 0.4, "error_budget_remaining_percent": 48.0,
+   "message": "SLO guardrail \"Checkout availability\" recovered.", "notification_sent": false, "notification_results": null,
+   "created_at": "2026-11-09T12:00:00.000Z"}
+]}

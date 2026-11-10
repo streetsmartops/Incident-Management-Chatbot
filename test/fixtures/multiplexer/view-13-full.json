@@ -1,0 +1,5 @@
+{"id": 13, "name": "Tiny production", "view_services": [
+  {"id": 44, "view_id": 13, "service_id": 8, "include_service_node": true, "display_order": 0, "created_at": "2026-05-01T00:00:00.000Z",
+   "service": {"id": 8, "name": "search", "tags": [], "created_at": "2026-05-01T00:00:00.000Z", "updated_at": "2026-05-01T00:00:00.000Z"},
+   "components": [], "direct_monitors": []}
+]}

@@ -333,6 +333,9 @@ func (s *Service) page(ctx context.Context, inc *Incident) {
 			continue
 		}
 		inc.PageRefs = append(inc.PageRefs, ref)
+		// Webhooks about our own page (acks, resolves) must attach here, not
+		// open a new incident.
+		inc.DedupKeys = append(inc.DedupKeys, PageDedupKey(s.ints.Paging.Name(), ref))
 		_, _ = s.Record(ctx, inc.ID, SystemActor, EvPaged, map[string]string{"service": svc, "pageRef": ref, "urgency": urgency})
 		if inc.WarRoom != nil {
 			if oncall, err := s.ints.Paging.WhoIsOnCall(ctx, svc); err == nil {
@@ -470,6 +473,9 @@ func (s *Service) incidentChannel(inc *Incident) (ChannelRef, ChatPort) {
 }
 
 // ---------------------------------------------------------------- Signals
+
+// PageDedupKey is the dedup key for a page opened by a paging provider.
+func PageDedupKey(provider, ref string) string { return provider + ":incident:" + ref }
 
 // SignalOutcome describes what HandleSignal did.
 type SignalOutcome string

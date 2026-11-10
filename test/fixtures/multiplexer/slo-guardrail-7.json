@@ -1,0 +1,5 @@
+{"guardrail": {"id": 7, "name": "Checkout availability", "view_service_id": 31, "component_id": null, "target_uptime_percent": 99.9,
+  "evaluation_window_hours": 720, "burn_rate_warning_threshold": 2, "burn_rate_critical_threshold": 5, "no_data_timeout_minutes": 10,
+  "notify_statuspage": false, "notify_pagerduty": true, "notify_jira": false, "is_active": true, "current_status": "breached",
+  "last_evaluated_at": "2026-11-10T02:59:00.000Z", "created_at": "2026-05-01T00:00:00.000Z", "updated_at": "2026-11-10T02:59:00.000Z"},
+ "events": []}
