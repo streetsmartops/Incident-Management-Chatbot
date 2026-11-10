@@ -1,0 +1,11 @@
+/bin/
+/dist/
+*.test
+*.out
+.env
+.env.*
+!.env.example
+config/local*.yaml
+__pycache__/
+.pytest_cache/
+eval/out/
