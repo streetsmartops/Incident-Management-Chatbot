@@ -420,13 +420,17 @@ v2 pgvector embeddings with hybrid ranking.
 
 ## 12. Multiplexer gap PRs (against `main`, each noting the missing `dev` branch)
 
-| ID | Gap (file) | PR | Tests |
+| ID | Gap | PR | Tests |
 |---|---|---|---|
-| G1 | `/api/slo-guardrails/**` has no `requirePermission` on any method, and the unauthenticated GETs return `pagerduty_service_key` (a PagerDuty routing key) | Add `views:read` / `views:write` checks; stop returning `pagerduty_service_key` | Handler tests: 401/403/200, key not in response |
-| G2 | Cookie-session-only auth; no machine identity (`src/lib/server/auth/middleware.ts`) | Hashed, scoped, expiring service tokens via `Authorization: Bearer`; CSRF skipped only for bearer-authenticated requests | Token validation, scope, expiry, CSRF bypass only with bearer |
-| G3 | Guardrail → tenant requires 3 joins; not exposed | Embed `tenant {id, slug, tier}` in guardrail GET responses | Response-shape tests |
-| G4 | Current burn rate / budget only in events written on status change (`slo-guardrails.ts`) | Persist last computed metrics on `slo_guardrails` (migration V10) | Evaluator test asserts persistence each cycle |
-| G5 (v2) | No generic outbound webhook | Signed webhook dispatcher on guardrail transitions | Signature + retry tests |
+| G1 | `/api/slo-guardrails/**` had no permission checks; unauthenticated GETs returned `pagerduty_service_key`; `POST /api/notifications/test` (fires real PD/Jira notifications) had no auth | [streetsmartops/Multi-slo-observability-app#5](https://github.com/streetsmartops/Multi-slo-observability-app/pull/5) | 25 vitest: 401/403/2xx per handler, key never returned |
+| G2 | Cookie-session-only auth; no machine identity | [streetsmartops/Multi-slo-observability-app#6](https://github.com/streetsmartops/Multi-slo-observability-app/pull/6): hashed, scoped, expiring `mpx_` service tokens (V10), CSRF skipped only for bearer requests | 9 vitest |
+| V9 *(found during G2)* | `V9__multi_tenant_saas.sql` fails on PostgreSQL (`NOW()` in a partial index predicate), so tenant tables are never created | [streetsmartops/Multi-slo-observability-app#7](https://github.com/streetsmartops/Multi-slo-observability-app/pull/7) | migration lint test; V1–V9 applied to Postgres 16 |
+| G3 | Guardrail → tenant required 3 joins client-side | [streetsmartops/Multi-slo-observability-app#8](https://github.com/streetsmartops/Multi-slo-observability-app/pull/8): `tenant {id, slug, tier}` embedded (the bot already uses it when present) | 2 vitest + SQL verified on Postgres |
+| G4 | Current burn rate / budget only on transition events | [streetsmartops/Multi-slo-observability-app#9](https://github.com/streetsmartops/Multi-slo-observability-app/pull/9): `last_*` metrics persisted each cycle (V11) | 2 vitest |
+| G5 (v2) | No generic outbound webhook | not started | — |
+
+Merge order: #7 (V9) → #6 (V10) → #9 (V11); #5 and #8 are independent. After #6, create a
+`views:read` token for the bot and set `MULTIPLEXER_TOKEN`.
 
 Note: Multiplexer's budget math weights `yellow` at 0.5 and counts `no_data` as bad (`slo-guardrails.ts:93`).
 Postmortem figures will differ from Datadog SLOs; documented, not changed.

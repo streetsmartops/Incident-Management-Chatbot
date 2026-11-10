@@ -121,15 +121,17 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, out any) er
 // Wire types (subset of Multiplexer's SloGuardrail / SloEvent / Tenant). We
 // deliberately do not decode pagerduty_service_key.
 type guardrail struct {
-	ID                    int64      `json:"id"`
-	Name                  string     `json:"name"`
-	ViewServiceID         *int64     `json:"view_service_id"`
-	ComponentID           *int64     `json:"component_id"`
-	TargetUptimePercent   float64    `json:"target_uptime_percent"`
-	EvaluationWindowHours int        `json:"evaluation_window_hours"`
-	IsActive              bool       `json:"is_active"`
-	CurrentStatus         string     `json:"current_status"`
-	LastEvaluatedAt       *time.Time `json:"last_evaluated_at"`
+	ID                    int64   `json:"id"`
+	Name                  string  `json:"name"`
+	ViewServiceID         *int64  `json:"view_service_id"`
+	ComponentID           *int64  `json:"component_id"`
+	TargetUptimePercent   float64 `json:"target_uptime_percent"`
+	EvaluationWindowHours int     `json:"evaluation_window_hours"`
+	IsActive              bool    `json:"is_active"`
+	// Tenant is embedded once Multiplexer PR G3 is merged; nil before that.
+	Tenant          *tenant    `json:"tenant"`
+	CurrentStatus   string     `json:"current_status"`
+	LastEvaluatedAt *time.Time `json:"last_evaluated_at"`
 }
 
 type sloEvent struct {
@@ -249,12 +251,20 @@ func (c *Client) SloEvents(ctx context.Context, id string, limit int) ([]core.Sl
 	return out, nil
 }
 
-// TenantFor resolves guardrail -> view_service -> view -> tenant.
+// TenantFor resolves the guardrail's tenant: from the embedded "tenant"
+// field when Multiplexer provides it (PR G3), otherwise via
+// guardrail -> view_service -> view -> tenant.
 func (c *Client) TenantFor(ctx context.Context, sloID string) (core.Tenant, bool, error) {
-	slo, err := c.GetSlo(ctx, sloID)
-	if err != nil {
+	var resp struct {
+		Guardrail guardrail `json:"guardrail"`
+	}
+	if err := c.get(ctx, "/api/slo-guardrails/"+url.PathEscape(sloID), nil, &resp); err != nil {
 		return core.Tenant{}, false, err
 	}
+	if t := resp.Guardrail.Tenant; t != nil {
+		return core.Tenant{ID: strconv.FormatInt(t.ID, 10), Slug: t.Slug, Name: t.Name, Tier: parseTier(t.Tier)}, true, nil
+	}
+	slo := c.toSlo(ctx, resp.Guardrail)
 	if slo.ViewServiceID == nil {
 		return core.Tenant{}, false, nil
 	}

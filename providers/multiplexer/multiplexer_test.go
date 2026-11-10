@@ -140,3 +140,18 @@ func TestBudgetFromEvents(t *testing.T) {
 		t.Fatal("no events => unavailable")
 	}
 }
+
+func TestTenantForUsesEmbeddedTenantWithoutToken(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/slo-guardrails/7" {
+			t.Errorf("embedded tenant must avoid extra calls, got %s", r.URL.Path)
+		}
+		_, _ = w.Write([]byte(`{"guardrail":{"id":7,"name":"Checkout availability","view_service_id":31,"current_status":"breached","is_active":true,"tenant":{"id":1,"slug":"acme","tier":"enterprise"}},"events":[]}`))
+	}))
+	defer srv.Close()
+	c, _ := multiplexer.New(srv.URL, "", srv.Client())
+	ten, ok, err := c.TenantFor(context.Background(), "7")
+	if err != nil || !ok || ten.Tier != core.TierEnterprise || ten.Slug != "acme" {
+		t.Fatalf("%+v %v %v", ten, ok, err)
+	}
+}
