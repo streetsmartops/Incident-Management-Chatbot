@@ -102,6 +102,7 @@ type Engine struct {
 	MaxOutputBytes int
 	MaxTokens      int
 	Now            func() time.Time
+	Metrics        core.Metrics // optional
 }
 
 const systemPrompt = `You are an incident triage assistant for on-call SREs. Your job: gather evidence with the read-only tools, then report ranked hypotheses for the cause, each backed by cited evidence.
@@ -150,7 +151,16 @@ func (e *Engine) catalogText() string {
 
 // Triage implements core.Triager.
 func (e *Engine) Triage(ctx context.Context, inc *core.Incident, focus string) (core.Message, any, error) {
+	start := e.Now()
 	run, err := e.Run(ctx, inc, focus)
+	if e.Metrics != nil {
+		if err != nil {
+			e.Metrics.TriageRun("error", e.Now().Sub(start), 0, 0, 0, 0, 0)
+		} else {
+			st := run.Stats
+			e.Metrics.TriageRun("ok", st.Duration, st.ToolCalls, st.DroppedHypotheses, st.DroppedActions, st.InputTokens, st.OutputTokens)
+		}
+	}
 	if err != nil {
 		return core.Message{}, nil, err
 	}

@@ -27,6 +27,7 @@ import (
 	"github.com/streetsmartops/incident-management-chatbot/core"
 	"github.com/streetsmartops/incident-management-chatbot/db"
 	"github.com/streetsmartops/incident-management-chatbot/ingest"
+	"github.com/streetsmartops/incident-management-chatbot/metrics"
 	"github.com/streetsmartops/incident-management-chatbot/postmortem"
 	anthropicllm "github.com/streetsmartops/incident-management-chatbot/providers/anthropic"
 	"github.com/streetsmartops/incident-management-chatbot/providers/datadog"
@@ -38,6 +39,9 @@ import (
 	"github.com/streetsmartops/incident-management-chatbot/remediation"
 	"github.com/streetsmartops/incident-management-chatbot/triage"
 )
+
+// Version is set at build time: -ldflags "-X main.Version=v1.2.3".
+var Version = "dev"
 
 func main() {
 	cmd := "serve"
@@ -96,6 +100,7 @@ type App struct {
 	PDHook   *ingest.PagerDutyWebhook
 	Poller   *ingest.Poller
 	Remedy   *remediation.Engine
+	Metrics  *metrics.Prom
 	ping     func(context.Context) error
 	closeFns []func()
 }
@@ -241,6 +246,13 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, err
 	}
 	svc.Postmortem = &postmortem.Engine{Store: app.Store, Slo: ints.Slo, LLM: llm, Itsm: ints.Itsm, Redactor: redactor, Now: time.Now}
 
+	app.Metrics = metrics.New(metrics.Options{Store: app.Store, ExecutorEnabled: app.Remedy.ExecutorEnabled, Version: Version})
+	svc.Metrics = app.Metrics
+	app.Remedy.Metrics = app.Metrics
+	if te, ok := svc.Triage.(*triage.Engine); ok {
+		te.Metrics = app.Metrics
+	}
+
 	if slackClient != nil {
 		app.Slack = &slackchat.Handler{Client: slackClient, Service: svc, SigningSecret: cfg.Secret(config.SecretSlackSigning), Log: log, Now: time.Now}
 	}
@@ -251,7 +263,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger) (*App, err
 		app.PDHook = &ingest.PagerDutyWebhook{PD: pd, Slo: ints.Slo, Service: svc, Log: log}
 	}
 	if mpx != nil {
-		app.Poller = &ingest.Poller{Slo: mpx, Store: app.Store, Service: svc, Interval: cfg.Multiplexer.PollInterval.D(), Log: log, Now: time.Now}
+		app.Poller = &ingest.Poller{Slo: mpx, Store: app.Store, Service: svc, Interval: cfg.Multiplexer.PollInterval.D(), Log: log, Now: time.Now, OnPoll: app.Metrics.Poll}
 	}
 	return app, nil
 }
@@ -361,6 +373,13 @@ func (a *App) logRequests(next http.Handler) http.Handler {
 		w.Header().Set("X-Request-Id", rid)
 		rec := &statusRecorder{ResponseWriter: w, status: 200}
 		next.ServeHTTP(rec, r)
+		route := r.Pattern // set by ServeMux on match; never the raw path (bounded cardinality)
+		if route == "" {
+			route = "unmatched"
+		}
+		if a.Metrics != nil {
+			a.Metrics.HTTP(route, rec.status, time.Since(start))
+		}
 		if r.URL.Path != "/healthz" && r.URL.Path != "/readyz" {
 			a.Log.Info("http", "method", r.Method, "path", r.URL.Path, "status", rec.status, "duration_ms", time.Since(start).Milliseconds(), "request_id", rid)
 		}
@@ -400,6 +419,18 @@ func serve(args []string) error {
 			}
 		}
 	}()
+	if cfg.Server.MetricsListen != "" {
+		mux := http.NewServeMux()
+		mux.Handle("GET /metrics", app.Metrics.Handler())
+		msrv := &http.Server{Addr: cfg.Server.MetricsListen, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+		go func() {
+			if err := msrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Error("metrics listener", "err", err)
+			}
+		}()
+		defer msrv.Close()
+		log.Info("metrics listening", "addr", cfg.Server.MetricsListen)
+	}
 	srv := &http.Server{Addr: cfg.Server.Listen, Handler: app.Routes(), ReadHeaderTimeout: 10 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 30 * time.Second}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()

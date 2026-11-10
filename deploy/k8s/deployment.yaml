@@ -6,7 +6,7 @@ metadata:
 data:
   config.yaml: |
     # Copy config/example.yaml here and fill in non-secret settings.
-    server: {listen: ":8080"}
+    server: {listen: ":8080", metricsListen: ":9090"}
     database: {driver: postgres, schema: incident_bot}
     slack: {enabled: true, announceChannelId: ""}
     remediation: {catalogDir: /app/remediation/catalog}
@@ -23,6 +23,15 @@ spec:
   template:
     metadata:
       labels: {app: incidentd}
+      annotations:
+        # Prometheus (annotation-based scraping). Prometheus Operator users:
+        # apply deploy/monitoring/servicemonitor.yaml instead.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: /metrics
+        # Datadog Agent OpenMetrics check (generated from
+        # deploy/dashboards/datadog/openmetrics-mapping.json).
+        ad.datadoghq.com/incidentd.checks: '{"openmetrics":{"init_config":{},"instances":[{"openmetrics_endpoint":"http://%%host%%:9090/metrics","namespace":"incidentd","metrics":[{"incidentd_action_requests":"action_requests"},{"incidentd_build_info":"build_info"},{"incidentd_commands":"commands"},{"incidentd_http_request_duration_seconds":"http_request_duration_seconds"},{"incidentd_http_requests":"http_requests"},{"incidentd_incident_duration_seconds":"incident_duration_seconds"},{"incidentd_incident_transitions":"incident_transitions"},{"incidentd_incidents_declared":"incidents_declared"},{"incidentd_incidents_open":"incidents_open"},{"incidentd_interactions":"interactions"},{"incidentd_llm_tokens":"llm_tokens"},{"incidentd_remediation_executor_enabled":"remediation_executor_enabled"},{"incidentd_side_effect_failures":"side_effect_failures"},{"incidentd_signals":"signals"},{"incidentd_slo_polls":"slo_polls"},{"incidentd_timeline_conflicts":"timeline_conflicts"},{"incidentd_triage_dropped":"triage_dropped"},{"incidentd_triage_duration_seconds":"triage_duration_seconds"},{"incidentd_triage_runs":"triage_runs"},{"incidentd_triage_tool_calls":"triage_tool_calls"}]}]}}'
     spec:
       serviceAccountName: incidentd
       automountServiceAccountToken: true
@@ -31,7 +40,9 @@ spec:
         - name: incidentd
           image: ghcr.io/streetsmartops/incidentd:latest # pin a digest in production
           args: ["serve", "-config", "/etc/incidentd/config.yaml"]
-          ports: [{containerPort: 8080, name: http}]
+          ports:
+            - {containerPort: 8080, name: http}
+            - {containerPort: 9090, name: metrics}
           env:
             # Each secret is read from a mounted file (NAME_FILE).
             - {name: DATABASE_URL_FILE, value: /etc/incidentd/secrets/DATABASE_URL}
@@ -72,3 +83,14 @@ metadata:
 spec:
   selector: {app: incidentd}
   ports: [{port: 80, targetPort: http, name: http}]
+---
+# Internal-only Service for metrics. Do not route it through the ingress.
+apiVersion: v1
+kind: Service
+metadata:
+  name: incidentd-metrics
+  namespace: incidentd
+  labels: {app: incidentd}
+spec:
+  selector: {app: incidentd}
+  ports: [{port: 9090, targetPort: metrics, name: metrics}]

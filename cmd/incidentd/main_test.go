@@ -154,3 +154,27 @@ func remediationCatalog(t *testing.T) (*remediation.Catalog, error) {
 	}
 	return c, nil
 }
+
+func TestHTTPMetricsUseRoutePattern(t *testing.T) {
+	app := testApp(t)
+	srv := httptest.NewServer(app.Routes())
+	defer srv.Close()
+	_, _ = srv.Client().Get(srv.URL + "/healthz")
+	_, _ = srv.Client().Get(srv.URL + "/no/such/path/12345")
+	rec := httptest.NewRecorder()
+	app.Metrics.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/metrics", nil))
+	out := rec.Body.String()
+	if !strings.Contains(out, `route="GET /healthz"`) || !strings.Contains(out, `route="unmatched"`) || strings.Contains(out, "12345") {
+		t.Fatalf("route labels must be mux patterns, not raw paths:\n%s", grep(out, "incidentd_http_requests_total"))
+	}
+}
+
+func grep(s, sub string) string {
+	var out []string
+	for _, l := range strings.Split(s, "\n") {
+		if strings.Contains(l, sub) {
+			out = append(out, l)
+		}
+	}
+	return strings.Join(out, "\n")
+}

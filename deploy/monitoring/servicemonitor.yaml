@@ -1,0 +1,14 @@
+# Prometheus Operator: scrape incidentd metrics and load the alert rules.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: incidentd
+  namespace: incidentd
+  labels: {release: prometheus} # match your Prometheus serviceMonitorSelector
+spec:
+  selector:
+    matchLabels: {app: incidentd}
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s

@@ -1,0 +1,22 @@
+{
+  "incidentd_action_requests": "action_requests",
+  "incidentd_build_info": "build_info",
+  "incidentd_commands": "commands",
+  "incidentd_http_request_duration_seconds": "http_request_duration_seconds",
+  "incidentd_http_requests": "http_requests",
+  "incidentd_incident_duration_seconds": "incident_duration_seconds",
+  "incidentd_incident_transitions": "incident_transitions",
+  "incidentd_incidents_declared": "incidents_declared",
+  "incidentd_incidents_open": "incidents_open",
+  "incidentd_interactions": "interactions",
+  "incidentd_llm_tokens": "llm_tokens",
+  "incidentd_remediation_executor_enabled": "remediation_executor_enabled",
+  "incidentd_side_effect_failures": "side_effect_failures",
+  "incidentd_signals": "signals",
+  "incidentd_slo_polls": "slo_polls",
+  "incidentd_timeline_conflicts": "timeline_conflicts",
+  "incidentd_triage_dropped": "triage_dropped",
+  "incidentd_triage_duration_seconds": "triage_duration_seconds",
+  "incidentd_triage_runs": "triage_runs",
+  "incidentd_triage_tool_calls": "triage_tool_calls"
+}

@@ -30,6 +30,12 @@ func userErr(format string, a ...any) error { return &UserError{Msg: fmt.Sprintf
 // Long-running work (triage, postmortem drafts) runs asynchronously and
 // posts its result to the incident channel.
 func (s *Service) Execute(ctx context.Context, cc CommandContext, cmd Command) (Message, error) {
+	m, err := s.execute(ctx, cc, cmd)
+	s.Metrics.Command(cmd.Verb, err)
+	return m, err
+}
+
+func (s *Service) execute(ctx context.Context, cc CommandContext, cmd Command) (Message, error) {
 	if cmd.Verb == "help" {
 		return Message{Text: HelpText, Ephemeral: true}, nil
 	}
@@ -263,6 +269,11 @@ func (s *Service) transition(ctx context.Context, actor UserRef, inc *Incident, 
 	}
 	from := inc.State
 	ApplyTransition(inc, to, now)
+	s.Metrics.IncidentTransition(from, to)
+	if to == StateResolved {
+		ttd, tta, ttm, ttr := Durations(inc)
+		s.Metrics.IncidentResolved(inc.Severity, ttd, tta, ttm, ttr)
+	}
 	if _, err := s.Record(ctx, inc.ID, HumanActor(actor), EvTransition, map[string]string{"from": string(from), "to": string(to), "note": note}); err != nil {
 		return Message{}, err
 	}
@@ -468,6 +479,12 @@ func compactPayload(p json.RawMessage) string {
 
 // HandleInteraction handles a button click from any chat platform.
 func (s *Service) HandleInteraction(ctx context.Context, cc CommandContext, actionID, value string) (Message, error) {
+	m, err := s.handleInteraction(ctx, cc, actionID, value)
+	s.Metrics.Interaction(actionID, err)
+	return m, err
+}
+
+func (s *Service) handleInteraction(ctx context.Context, cc CommandContext, actionID, value string) (Message, error) {
 	switch actionID {
 	case "declare_signal":
 		id, sevStr, _ := strings.Cut(value, "|")

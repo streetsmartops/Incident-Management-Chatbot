@@ -84,6 +84,7 @@ type Poller struct {
 	Interval time.Duration
 	Log      *slog.Logger
 	Now      func() time.Time
+	OnPoll   func(error) // optional metrics hook
 
 	mu   sync.Mutex
 	last map[string]core.SloStatus
@@ -94,8 +95,12 @@ func (p *Poller) Run(ctx context.Context) {
 	t := time.NewTicker(p.Interval)
 	defer t.Stop()
 	for {
-		if err := p.Poll(ctx); err != nil {
+		err := p.Poll(ctx)
+		if err != nil {
 			p.Log.Warn("multiplexer poll failed", "err", err)
+		}
+		if p.OnPoll != nil {
+			p.OnPoll(err)
 		}
 		select {
 		case <-ctx.Done():

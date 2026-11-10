@@ -65,6 +65,7 @@ type Service struct {
 	Triage     Triager
 	Remediate  Remediator
 	Postmortem PostmortemEngine
+	Metrics    Metrics
 
 	Now   func() time.Time
 	NewID func() string
@@ -90,7 +91,7 @@ func NewService(store Store, ints Integrations, cfg ServiceConfig, policy Severi
 	if log == nil {
 		log = slog.Default()
 	}
-	return &Service{store: store, ints: ints, cfg: cfg, policy: policy, log: log, Now: time.Now, NewID: NewULIDish}
+	return &Service{store: store, ints: ints, cfg: cfg, policy: policy, log: log, Now: time.Now, NewID: NewULIDish, Metrics: NopMetrics{}}
 }
 
 // Store exposes the store for engines.
@@ -135,6 +136,7 @@ func (s *Service) Record(ctx context.Context, incidentID string, actor Actor, ki
 		}
 		err = s.store.AppendEvent(ctx, ev)
 		if errors.Is(err, ErrConflict) {
+			s.Metrics.TimelineConflict()
 			var b [1]byte
 			_, _ = rand.Read(b[:])
 			select {
@@ -154,6 +156,7 @@ func (s *Service) Record(ctx context.Context, incidentID string, actor Actor, ki
 }
 
 func (s *Service) recordErr(ctx context.Context, inc *Incident, step string, err error) {
+	s.Metrics.SideEffectFailed(strings.SplitN(step, ":", 2)[0])
 	s.log.Warn("side effect failed", "incident_id", inc.ID, "correlation_id", inc.CorrelationID, "step", step, "err", err)
 	_, _ = s.Record(ctx, inc.ID, SystemActor, EvError, map[string]string{"step": step, "error": err.Error()})
 }
@@ -269,6 +272,7 @@ func (s *Service) Declare(ctx context.Context, req DeclareRequest) (*Incident, e
 		return nil, err
 	}
 	s.announce(ctx, inc, req)
+	s.Metrics.IncidentDeclared(inc.Severity, req.Auto)
 	return inc, nil
 }
 
@@ -505,6 +509,12 @@ const (
 // HandleSignal dedupes, enriches and classifies a signal, then attaches it,
 // auto-declares or posts a proposal (docs/architecture.md §5.2).
 func (s *Service) HandleSignal(ctx context.Context, sig Signal) (SignalOutcome, *Incident, error) {
+	out, inc, err := s.handleSignal(ctx, sig)
+	s.Metrics.SignalHandled(sig.Source, out, err)
+	return out, inc, err
+}
+
+func (s *Service) handleSignal(ctx context.Context, sig Signal) (SignalOutcome, *Incident, error) {
 	if sig.ID == "" {
 		sig.ID = s.NewID()
 	}

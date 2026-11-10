@@ -1,0 +1,56 @@
+# Prometheus Operator form of prometheus-rules.yaml (same rules).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: incidentd
+  namespace: incidentd
+  labels: {release: prometheus}
+spec:
+  groups:
+    - name: incidentd
+      rules:
+        - alert: IncidentdDown
+          expr: up{job="incidentd"} == 0
+          for: 5m
+          labels: {severity: page}
+          annotations:
+            summary: incidentd is down - chat commands, paging and SLO ingest are unavailable
+            runbook: docs/operations.md#incidentd-down
+        - alert: IncidentdSloPollFailing
+          expr: sum(rate(incidentd_slo_polls_total{result="error"}[10m])) > 0 and sum(rate(incidentd_slo_polls_total{result="ok"}[10m])) == 0
+          for: 10m
+          labels: {severity: page}
+          annotations:
+            summary: Multiplexer polling has failed for 10 minutes - SLO breaches will not auto-declare
+            runbook: docs/operations.md#slo-polling-failing
+        - alert: IncidentdSideEffectsFailing
+          expr: sum by (step) (increase(incidentd_side_effect_failures_total[15m])) > 3
+          labels: {severity: ticket}
+          annotations:
+            summary: 'incidentd side effect "{{ $labels.step }}" failing (paging/ticket/war room)'
+            runbook: docs/operations.md#side-effect-failures
+        - alert: IncidentdSignatureFailures
+          expr: sum by (route) (increase(incidentd_http_requests_total{code="401",route=~".*(slack|teams|webhooks).*"}[15m])) > 10
+          labels: {severity: ticket}
+          annotations:
+            summary: 'Many rejected requests on {{ $labels.route }} - check signing secrets or possible spoofing'
+            runbook: docs/operations.md#signature-failures
+        - alert: IncidentdTriageErrors
+          expr: sum(increase(incidentd_triage_runs_total{outcome="error"}[1h])) > 3
+          labels: {severity: ticket}
+          annotations:
+            summary: AI triage failing repeatedly (LLM API, budget or tool errors)
+            runbook: docs/operations.md#triage-errors
+        - alert: IncidentdSlowAck
+          expr: histogram_quantile(0.95, sum by (le, route) (rate(incidentd_http_request_duration_seconds_bucket{route=~".*slack.*"}[10m]))) > 2
+          for: 10m
+          labels: {severity: ticket}
+          annotations:
+            summary: Slack acks are close to the 3 second limit
+            runbook: docs/operations.md#slow-acks
+        - alert: IncidentdExecutorEnabled
+          expr: max(incidentd_remediation_executor_enabled) == 1
+          labels: {severity: info}
+          annotations:
+            summary: Remediation execution is ENABLED (both kill-switch keys on) - confirm this is intended
+            runbook: docs/operations.md#kill-switch

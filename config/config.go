@@ -80,6 +80,9 @@ type Config struct {
 // Server settings.
 type Server struct {
 	Listen string `yaml:"listen"`
+	// MetricsListen serves Prometheus /metrics on a separate, internal-only
+	// port (not exposed through the ingress). Empty disables it.
+	MetricsListen string `yaml:"metricsListen"`
 }
 
 // Database settings. The DSN is the DATABASE_URL secret.
@@ -264,7 +267,7 @@ func (c *Config) RemediationEnvEnabled() bool {
 // Defaults returns a config with safe defaults.
 func Defaults() *Config {
 	return &Config{
-		Server:   Server{Listen: ":8080"},
+		Server:   Server{Listen: ":8080", MetricsListen: ":9090"},
 		LogLevel: "info",
 		Database: Database{Driver: "postgres", Schema: "incident_bot"},
 		Incident: Incident{

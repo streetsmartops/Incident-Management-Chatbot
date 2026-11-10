@@ -2,6 +2,7 @@
 # Secrets are read from env vars or NAME_FILE mounts - see README "Secrets".
 server:
   listen: ":8080"
+  metricsListen: ":9090"   # Prometheus /metrics, internal only; "" disables
 logLevel: info
 
 database:

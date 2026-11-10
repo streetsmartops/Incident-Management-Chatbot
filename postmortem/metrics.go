@@ -8,14 +8,6 @@ import (
 	"github.com/streetsmartops/incident-management-chatbot/core"
 )
 
-func dur(from, to *time.Time) *time.Duration {
-	if from == nil || to == nil || to.Before(*from) {
-		return nil
-	}
-	d := to.Sub(*from)
-	return &d
-}
-
 // ComputeMetrics derives TTD/TTA/time-to-declare/TTM/TTR (docs §9).
 //
 //	TTD             = detectedAt − impactStartedAt
@@ -26,18 +18,13 @@ func dur(from, to *time.Time) *time.Duration {
 //
 // impactStartedAt defaults to detectedAt when unknown.
 func ComputeMetrics(inc *core.Incident) core.IncidentMetrics {
-	detected := inc.DetectedAt
-	impact := &detected
-	if inc.ImpactStartedAt != nil {
-		impact = inc.ImpactStartedAt
+	ttd, tta, ttm, ttr := core.Durations(inc)
+	var declare *time.Duration
+	if inc.DeclaredAt != nil && !inc.DeclaredAt.Before(inc.DetectedAt) {
+		d := inc.DeclaredAt.Sub(inc.DetectedAt)
+		declare = &d
 	}
-	return core.IncidentMetrics{
-		TTD:           dur(impact, &detected),
-		TTA:           dur(&detected, inc.AcknowledgedAt),
-		TimeToDeclare: dur(&detected, inc.DeclaredAt),
-		TTM:           dur(impact, inc.MitigatedAt),
-		TTR:           dur(impact, inc.ResolvedAt),
-	}
+	return core.IncidentMetrics{TTD: ttd, TTA: tta, TimeToDeclare: declare, TTM: ttm, TTR: ttr}
 }
 
 // FormatDuration renders a duration for humans ("—" if nil).

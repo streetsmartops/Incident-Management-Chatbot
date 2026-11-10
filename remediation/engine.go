@@ -36,6 +36,21 @@ type Engine struct {
 	EnvEnabled bool
 	Now        func() time.Time
 	NewID      func() string
+	Metrics    core.Metrics // optional
+}
+
+func (e *Engine) save(ctx context.Context, req *core.ActionRequest) error {
+	err := e.Store.SaveAction(ctx, req)
+	if err == nil {
+		e.observe(req)
+	}
+	return err
+}
+
+func (e *Engine) observe(req *core.ActionRequest) {
+	if e.Metrics != nil && req != nil {
+		e.Metrics.ActionRequest(req.ActionID, req.Risk, req.Status)
+	}
 }
 
 // ExecutorEnabled is true only if BOTH the env switch and the runtime DB flag are on.
@@ -84,7 +99,7 @@ func (e *Engine) Request(ctx context.Context, inc *core.Incident, actor core.Use
 		ID: e.NewID(), IncidentID: inc.ID, ActionID: act.ID, Params: params, Risk: act.Risk,
 		RequestedBy: actor, Source: source, DryRunDiff: diff, CreatedAt: now, ExpiresAt: now.Add(e.TTL), Status: core.ActionPending,
 	}
-	if err := e.Store.SaveAction(ctx, req); err != nil {
+	if err := e.save(ctx, req); err != nil {
 		return nil, core.Message{}, err
 	}
 	who := core.HumanActor(actor)
@@ -153,7 +168,7 @@ func (e *Engine) Approve(ctx context.Context, id string, approver core.UserRef) 
 	now := e.Now()
 	if req.Status == core.ActionPending && !now.Before(req.ExpiresAt) {
 		req.Status = core.ActionExpired
-		_ = e.Store.SaveAction(ctx, req)
+		_ = e.save(ctx, req)
 		_, _ = e.Recorder.Record(ctx, inc.ID, core.SystemActor, core.EvActionExpired, map[string]string{"requestId": req.ID})
 		return req, core.Message{}, userErr("request %s expired; request it again", req.ID)
 	}
@@ -170,7 +185,7 @@ func (e *Engine) Approve(ctx context.Context, id string, approver core.UserRef) 
 		return req, core.Message{}, err
 	}
 	req.Approvals = append(req.Approvals, app)
-	if err := e.Store.SaveAction(ctx, req); err != nil {
+	if err := e.save(ctx, req); err != nil {
 		return req, core.Message{}, err
 	}
 	if !Satisfied(req.Risk, req.RequestedBy, req.Approvals) {
@@ -231,12 +246,12 @@ func (e *Engine) execute(ctx context.Context, req *core.ActionRequest, inc *core
 	}
 	if err != nil {
 		req.Status, req.Result = core.ActionFailed, err.Error()
-		_ = e.Store.SaveAction(ctx, req)
+		_ = e.save(ctx, req)
 		_, _ = e.Recorder.Record(ctx, inc.ID, core.SystemActor, core.EvActionFailed, map[string]string{"requestId": req.ID, "error": err.Error()})
 		return req, core.Message{Text: fmt.Sprintf("%s failed: %s", req.ActionID, err)}, nil
 	}
 	req.Status, req.Result = core.ActionExecuted, out
-	_ = e.Store.SaveAction(ctx, req)
+	_ = e.save(ctx, req)
 	_, _ = e.Recorder.Record(ctx, inc.ID, core.SystemActor, core.EvActionExecuted, map[string]string{"requestId": req.ID, "result": out})
 	text := fmt.Sprintf("%s executed: %s", req.ActionID, out)
 	if v, err := prov.Verify(ctx, spec); err == nil {
@@ -247,7 +262,7 @@ func (e *Engine) execute(ctx context.Context, req *core.ActionRequest, inc *core
 		_, _ = e.Recorder.Record(ctx, inc.ID, core.SystemActor, core.EvNote, map[string]string{"requestId": req.ID, "verify": err.Error()})
 		text += "\nVerify pending: " + err.Error()
 	}
-	_ = e.Store.SaveAction(ctx, req)
+	_ = e.save(ctx, req)
 	if e.Itsm != nil && inc.TicketRef != "" {
 		_ = e.Itsm.Comment(ctx, inc.TicketRef, text)
 	}
@@ -256,7 +271,7 @@ func (e *Engine) execute(ctx context.Context, req *core.ActionRequest, inc *core
 
 func (e *Engine) dryRunOnly(ctx context.Context, req *core.ActionRequest, inc *core.Incident) (*core.ActionRequest, core.Message, error) {
 	req.Status = core.ActionDryRun
-	_ = e.Store.SaveAction(ctx, req)
+	_ = e.save(ctx, req)
 	_, _ = e.Recorder.Record(ctx, inc.ID, core.SystemActor, core.EvNote, map[string]string{
 		"requestId": req.ID, "note": "approved but executor disabled (kill switch); no change made",
 	})
@@ -277,7 +292,7 @@ func (e *Engine) Deny(ctx context.Context, id string, actor core.UserRef) (*core
 		return req, core.Message{}, userErr("only the IC or the requester can deny")
 	}
 	req.Status = core.ActionDenied
-	if err := e.Store.SaveAction(ctx, req); err != nil {
+	if err := e.save(ctx, req); err != nil {
 		return req, core.Message{}, err
 	}
 	_, _ = e.Recorder.Record(ctx, inc.ID, core.HumanActor(actor), core.EvActionDenied, map[string]string{"requestId": req.ID})
