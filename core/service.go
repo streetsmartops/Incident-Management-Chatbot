@@ -69,7 +69,8 @@ type Service struct {
 	Now   func() time.Time
 	NewID func() string
 
-	locks sync.Map // incidentID -> *sync.Mutex
+	locks       sync.Map // incidentID -> *sync.Mutex (command-level)
+	appendLocks sync.Map // incidentID -> *sync.Mutex (timeline appends)
 	wg    sync.WaitGroup
 }
 
@@ -113,10 +114,15 @@ func (s *Service) lock(id string) func() {
 	return mu.Unlock
 }
 
-// Record appends a hash-chained timeline event. It retries on append races
-// (another replica wrote the same seq).
+// Record appends a hash-chained timeline event. Appends for one incident
+// are serialised in-process; races with other replicas are detected by the
+// store's (incident_id, seq) uniqueness and retried with jittered backoff.
 func (s *Service) Record(ctx context.Context, incidentID string, actor Actor, kind EventKind, payload any) (TimelineEvent, error) {
-	for attempt := 0; attempt < 5; attempt++ {
+	m, _ := s.appendLocks.LoadOrStore(incidentID, &sync.Mutex{})
+	mu := m.(*sync.Mutex)
+	mu.Lock()
+	defer mu.Unlock()
+	for attempt := 0; attempt < 20; attempt++ {
 		prev, err := s.store.LastEvent(ctx, incidentID)
 		if err != nil {
 			return TimelineEvent{}, err
@@ -127,6 +133,13 @@ func (s *Service) Record(ctx context.Context, incidentID string, actor Actor, ki
 		}
 		err = s.store.AppendEvent(ctx, ev)
 		if errors.Is(err, ErrConflict) {
+			var b [1]byte
+			_, _ = rand.Read(b[:])
+			select {
+			case <-ctx.Done():
+				return TimelineEvent{}, ctx.Err()
+			case <-time.After(time.Duration(5+int(b[0])%45) * time.Millisecond):
+			}
 			continue
 		}
 		if err != nil {
