@@ -382,3 +382,41 @@ func TestMultiTenantEscalation(t *testing.T) {
 		}
 	}
 }
+
+func TestNoRedeclareWhileSloStaysBreachedAfterResolve(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	sig := core.Signal{Source: "multiplexer", DedupKey: "multiplexer:guardrail:7", SloID: "7", Title: "Checkout availability breached", SloStatus: core.SloBreached}
+	var inc *core.Incident
+	for i := 0; i < 2; i++ {
+		_, inc, _ = h.svc.HandleSignal(ctx, sig)
+	}
+	if inc == nil {
+		t.Fatal("expected auto-declare")
+	}
+	if _, err := h.run(t, bob, *inc.WarRoom, "role ic me"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.run(t, bob, *inc.WarRoom, `resolve "rolled back"`); err != nil {
+		t.Fatal(err)
+	}
+	// The SLO window keeps the guardrail breached long after mitigation.
+	for i := 0; i < 5; i++ {
+		if out, _, _ := h.svc.HandleSignal(ctx, sig); out == core.OutcomeAutoDeclared || out == core.OutcomeProposed {
+			t.Fatalf("poll %d: must not re-declare/propose while the same breach persists (got %s)", i, out)
+		}
+	}
+	if all, _ := h.store.ListIncidents(ctx, core.IncidentFilter{}); len(all) != 1 {
+		t.Fatalf("want 1 incident, got %d", len(all))
+	}
+	// Recovery clears the suppression; a fresh breach declares again.
+	ok := sig
+	ok.SloStatus = core.SloOK
+	_, _, _ = h.svc.HandleSignal(ctx, ok)
+	for i := 0; i < 2; i++ {
+		_, _, _ = h.svc.HandleSignal(ctx, sig)
+	}
+	if all, _ := h.store.ListIncidents(ctx, core.IncidentFilter{}); len(all) != 2 {
+		t.Fatalf("a new breach after recovery must declare a new incident, got %d", len(all))
+	}
+}

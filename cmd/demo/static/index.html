@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>incidentd demo console</title>
+<style>
+  :root { --bg:#f6f7f9; --panel:#fff; --side:#1f2430; --side-fg:#cfd6e4; --accent:#b22222; --muted:#6b7280; --border:#e5e7eb; --code:#f3f4f6; --ok:#15803d; --warn:#b45309; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 14px/1.45 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color:#111827; height:100vh; display:flex; flex-direction:column; }
+  header { background:#111827; color:#fff; padding:8px 14px; display:flex; align-items:center; gap:14px; font-size:13px; }
+  header b { font-size:15px; }
+  header .note { color:#fca5a5; }
+  header label { margin-left:auto; }
+  header select { font-size:13px; padding:2px 4px; }
+  main { flex:1; display:flex; min-height:0; }
+  nav { width:230px; background:var(--side); color:var(--side-fg); padding:10px 0; overflow:auto; }
+  nav h4 { margin:8px 14px 4px; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:#8b93a7; }
+  nav .ch { padding:5px 14px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  nav .ch.active { background:#2f3a52; color:#fff; font-weight:600; }
+  nav .ch .lock { opacity:.7; }
+  section.chat { flex:1; display:flex; flex-direction:column; min-width:0; background:var(--panel); }
+  .topic { padding:8px 16px; border-bottom:1px solid var(--border); }
+  .topic .name { font-weight:700; font-size:16px; }
+  .topic .t { color:var(--muted); font-size:12px; }
+  #messages { flex:1; overflow:auto; padding:10px 16px; }
+  .msg { display:flex; gap:10px; padding:6px 0; }
+  .avatar { width:32px; height:32px; border-radius:6px; flex:none; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; }
+  .who { font-weight:700; } .when { color:var(--muted); font-size:11px; margin-left:6px; }
+  .cmd { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background:var(--code); padding:1px 6px; border-radius:4px; }
+  .card { border-left:4px solid var(--accent); padding:4px 10px; margin-top:4px; background:#fff; }
+  .card .title { font-weight:700; font-size:15px; margin-bottom:2px; }
+  .card .text { white-space:pre-wrap; }
+  .card code { font-family: ui-monospace, Menlo, monospace; background:var(--code); padding:0 4px; border-radius:3px; font-size:12.5px; }
+  .card pre { background:var(--code); padding:8px; border-radius:4px; overflow:auto; font-size:12px; margin:6px 0; white-space:pre; }
+  .fields { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:4px 16px; margin-top:6px; }
+  .field .l { font-weight:700; font-size:12px; } .field .v { font-size:13px; white-space:pre-wrap; }
+  .buttons { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
+  .buttons button { border:1px solid #d1d5db; background:#fff; padding:5px 12px; border-radius:4px; cursor:pointer; font-weight:600; }
+  .buttons button.primary { background:var(--ok); color:#fff; border-color:var(--ok); }
+  .buttons button.danger { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .ephemeral { color:var(--muted); font-size:11px; margin-top:2px; }
+  form.composer { border-top:1px solid var(--border); padding:10px 16px; display:flex; gap:8px; }
+  form.composer input { flex:1; padding:9px 10px; border:1px solid #d1d5db; border-radius:6px; font: 14px ui-monospace, Menlo, monospace; }
+  form.composer button { padding:8px 16px; background:#111827; color:#fff; border:0; border-radius:6px; font-weight:600; }
+  aside { width:360px; border-left:1px solid var(--border); background:#fbfbfc; display:flex; flex-direction:column; min-height:0; }
+  aside h3 { margin:0; padding:10px 14px; font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); border-bottom:1px solid var(--border); }
+  .slo { padding:12px 14px; border-bottom:1px solid var(--border); }
+  .slo .status { font-weight:700; } .slo .status.ok { color:var(--ok); } .slo .status.breached { color:var(--accent); }
+  .slo button { margin-top:8px; padding:6px 10px; border:1px solid var(--accent); color:var(--accent); background:#fff; border-radius:4px; font-weight:600; cursor:pointer; }
+  #log { flex:1; overflow:auto; padding:8px 14px; font-size:12px; }
+  .le { padding:4px 0; border-bottom:1px dashed #eee; }
+  .sys { display:inline-block; min-width:78px; font-weight:700; font-size:11px; text-transform:uppercase; }
+  .sys.pagerduty{color:#047857}.sys.jira{color:#1d4ed8}.sys.kubernetes{color:#7c3aed}.sys.llm{color:#b45309}.sys.multiplexer{color:#b22222}
+  #caption { position:fixed; left:50%; bottom:86px; transform:translateX(-50%); background:rgba(17,24,39,.92); color:#fff; padding:10px 18px; border-radius:8px; font-size:17px; max-width:860px; text-align:center; display:none; box-shadow:0 6px 20px rgba(0,0,0,.25); z-index:10; }
+</style>
+</head>
+<body>
+<header>
+  <b>incidentd</b> demo console
+  <span class="note">Local chat simulator (not Slack) · real incident core &amp; engines · vendors faked · LLM scripted, no API calls</span>
+  <label>Acting as <select id="user"></select></label>
+</header>
+<main>
+  <nav><h4>Channels</h4><div id="channels"></div></nav>
+  <section class="chat">
+    <div class="topic"><div class="name" id="chname"></div><div class="t" id="chtopic"></div></div>
+    <div id="messages"></div>
+    <form class="composer" id="composer"><input id="input" autocomplete="off" placeholder='/incident declare "Checkout 500s" --sev 2'><button>Send</button></form>
+  </section>
+  <aside>
+    <h3>Multiplexer SLO</h3>
+    <div class="slo"><div>Guardrail <b>Checkout availability</b> · tenant <b>acme</b> (enterprise)</div>
+      <div>Status: <span class="status" id="slostatus">ok</span></div>
+      <button id="breach">Simulate SLO breach</button></div>
+    <h3>Integration calls</h3>
+    <div id="log"></div>
+  </aside>
+</main>
+<div id="caption"></div>
+<script>
+let state = {channels:[], messages:[], log:[], users:{}};
+let current = 'C-incidents';
+let lastCount = -1;
+const $ = (id) => document.getElementById(id);
+const colors = {alice:'#2563eb', bob:'#059669', carol:'#9333ea', bot:'#b22222'};
+
+function esc(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function md(s){
+  s = esc(s);
+  s = s.replace(/```\n?([\s\S]*?)```/g, (_, c) => '<pre>' + c.replace(/\n$/, '') + '</pre>');
+  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*([^*\n]+)\*/g, '<b>$1</b>');
+  s = s.replace(/(^|\s)_([^_\n]+)_(?=\s|$)/g, '$1<i>$2</i>');
+  return s;
+}
+function userName(id){ const u = state.users[id]; return u ? u.name : id; }
+
+async function refresh(){
+  const r = await fetch('/api/state'); state = await r.json();
+  const sel = $('user');
+  if (!sel.options.length) for (const id of ['alice','bob','carol']) { const o = document.createElement('option'); o.value = id; o.textContent = state.users[id].name; sel.appendChild(o); }
+  renderChannels(); renderMessages(); renderLog();
+  $('slostatus').textContent = state.slo; $('slostatus').className = 'status ' + state.slo;
+}
+function renderChannels(){
+  $('channels').innerHTML = state.channels.map(c => `<div class="ch ${c.id===current?'active':''}" data-ch="${c.id}">${c.private?'<span class="lock">🔒</span>':'#'} ${esc(c.name)}</div>`).join('');
+  const ch = state.channels.find(c => c.id === current) || state.channels[0];
+  $('chname').textContent = '# ' + ch.name; $('chtopic').textContent = ch.topic || '';
+}
+function renderMessages(){
+  const me = $('user').value;
+  const msgs = state.messages.filter(m => m.channel === current && (!m.ephemeral || m.ephemeral === me));
+  const key = current + ':' + msgs.length + ':' + me;
+  if (key === lastCount) return; lastCount = key;
+  $('messages').innerHTML = msgs.map(m => {
+    const who = m.author === 'bot' ? 'incidentbot' : userName(m.author);
+    const t = new Date(m.at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    let body;
+    if (m.author !== 'bot') body = `<div><span class="cmd">${esc(m.text)}</span></div>`;
+    else {
+      const x = m.msg;
+      body = `<div class="card">` + (x.title?`<div class="title">${esc(x.title)}</div>`:'') + (x.text?`<div class="text">${md(x.text)}</div>`:'') +
+        (x.fields && x.fields.length ? `<div class="fields">` + x.fields.map(f => `<div class="field"><div class="l">${esc(f.label)}</div><div class="v">${md(f.value)}</div></div>`).join('') + `</div>` : '') +
+        (x.buttons && x.buttons.length ? `<div class="buttons">` + x.buttons.map(b => `<button class="${b.style||''}" data-action="${esc(b.actionId)}" data-value="${esc(b.value)}">${esc(b.label)}</button>`).join('') + `</div>` : '') +
+        `</div>` + (m.ephemeral ? `<div class="ephemeral">Only visible to you</div>` : '');
+    }
+    return `<div class="msg"><div class="avatar" style="background:${colors[m.author]||'#6b7280'}">${who[0].toUpperCase()}</div><div style="min-width:0;flex:1"><span class="who">${esc(who)}</span><span class="when">${t}</span>${body}</div></div>`;
+  }).join('');
+  $('messages').scrollTop = $('messages').scrollHeight;
+}
+function renderLog(){
+  $('log').innerHTML = state.log.slice().reverse().map(e => `<div class="le"><span class="sys ${e.system}">${esc(e.system)}</span> ${esc(e.text)}</div>`).join('');
+}
+$('channels').addEventListener('click', e => { const el = e.target.closest('[data-ch]'); if (!el) return; current = el.dataset.ch; lastCount = -1; renderChannels(); renderMessages(); });
+$('user').addEventListener('change', () => { lastCount = -1; renderMessages(); });
+$('messages').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-action]'); if (!b) return;
+  await fetch('/api/action', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({user:$('user').value, channel:current, actionId:b.dataset.action, value:b.dataset.value})});
+  refresh();
+});
+$('composer').addEventListener('submit', async e => {
+  e.preventDefault(); const text = $('input').value.trim(); if (!text) return; $('input').value = '';
+  await fetch('/api/command', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({user:$('user').value, channel:current, text})});
+  refresh();
+});
+$('breach').addEventListener('click', async () => { await fetch('/api/simulate/breach', {method:'POST'}); refresh(); });
+window.selectChannel = (prefix) => { const c = state.channels.find(c => c.name.startsWith(prefix)); if (c) { current = c.id; lastCount = -1; renderChannels(); renderMessages(); } return !!c; };
+window.caption = (t) => { const c = $('caption'); if (!t) { c.style.display='none'; return; } c.textContent = t; c.style.display='block'; };
+refresh(); setInterval(refresh, 500);
+</script>
+</body>
+</html>

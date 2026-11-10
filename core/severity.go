@@ -172,8 +172,9 @@ func containsStatus(list []SloStatus, s SloStatus) bool {
 	return false
 }
 
+// short abbreviates SHA-256 policy hashes; named policies are kept whole.
 func short(h string) string {
-	if len(h) > 12 {
+	if len(h) == 64 {
 		return h[:12]
 	}
 	return h

@@ -493,6 +493,8 @@ func (s *Service) incidentChannel(inc *Incident) (ChannelRef, ChatPort) {
 
 // ---------------------------------------------------------------- Signals
 
+func suppressFlag(dedupKey string) string { return "suppress:" + dedupKey }
+
 // PageDedupKey is the dedup key for a page opened by a paging provider.
 func PageDedupKey(provider, ref string) string { return provider + ":incident:" + ref }
 
@@ -536,10 +538,21 @@ func (s *Service) handleSignal(ctx context.Context, sig Signal) (SignalOutcome, 
 	}
 	if sig.Resolved || sig.SloStatus == SloOK {
 		s.trackTenants(sig)
+		if sig.SloStatus == SloOK && sig.DedupKey != "" {
+			_ = s.store.SetFlag(ctx, suppressFlag(sig.DedupKey), false) // recovery re-arms auto-declare
+		}
 		if sig.DedupKey != "" && sig.SloStatus != "" {
 			_, _ = s.store.RecordObservation(ctx, sig.DedupKey, sig.SloStatus)
 		}
 		return OutcomeIgnored, nil, nil
+	}
+	// SLO windows stay breached long after an incident is resolved; don't
+	// re-declare the same breach until the SLO has recovered once.
+	if sig.SloStatus != "" && sig.DedupKey != "" {
+		if suppressed, _ := s.store.GetFlag(ctx, suppressFlag(sig.DedupKey)); suppressed {
+			s.log.Info("signal suppressed: same breach as a resolved incident; waiting for SLO recovery", "dedup_key", sig.DedupKey)
+			return OutcomeIgnored, nil, nil
+		}
 	}
 	consecutive := s.policy.AutoDeclare.ConsecutiveEvaluations // non-SLO sources are already debounced upstream
 	if sig.SloStatus != "" && sig.DedupKey != "" {

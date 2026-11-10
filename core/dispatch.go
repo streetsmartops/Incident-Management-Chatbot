@@ -271,6 +271,9 @@ func (s *Service) transition(ctx context.Context, actor UserRef, inc *Incident, 
 	ApplyTransition(inc, to, now)
 	s.Metrics.IncidentTransition(from, to)
 	if to == StateResolved {
+		for _, k := range inc.DedupKeys {
+			_ = s.store.SetFlag(ctx, suppressFlag(k), true)
+		}
 		ttd, tta, ttm, ttr := Durations(inc)
 		s.Metrics.IncidentResolved(inc.Severity, ttd, tta, ttm, ttr)
 	}

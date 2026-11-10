@@ -362,7 +362,8 @@ func Render(inc *core.Incident, run *Run) core.Message {
 	if len(r.MissingData) > 0 {
 		b.WriteString("\n*Not checked:* " + strings.Join(r.MissingData, "; ") + "\n")
 	}
-	fmt.Fprintf(&b, "\n_%d tool calls, read-only. Dropped: %d uncited hypotheses, %d non-catalog actions._", run.Stats.ToolCalls, run.Stats.DroppedHypotheses, run.Stats.DroppedActions)
+	fmt.Fprintf(&b, "\n_%d tool calls, read-only. Dropped: %s, %s._", run.Stats.ToolCalls,
+		plural(run.Stats.DroppedHypotheses, "uncited hypothesis", "uncited hypotheses"), plural(run.Stats.DroppedActions, "non-catalog action", "non-catalog actions"))
 	msg := core.Message{Title: "AI triage: " + inc.Key, Text: b.String()}
 	br := r.BlastRadius
 	if len(br.Services)+len(br.Tenants) > 0 || br.UserImpact != "" {
@@ -374,4 +375,11 @@ func Render(inc *core.Incident, run *Run) core.Message {
 		msg.Buttons = append(msg.Buttons, core.Button{ActionID: "request_action", Label: "Request " + a.ActionID, Value: string(v)})
 	}
 	return msg
+}
+
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return "1 " + one
+	}
+	return fmt.Sprintf("%d %s", n, many)
 }
