@@ -197,8 +197,12 @@ func (c *Client) UpdateMessage(ctx context.Context, ref core.MessageRef, m core.
 func (c *Client) CreateWarRoom(context.Context, string, bool) (core.ChannelRef, error) {
 	return core.ChannelRef{}, core.ErrNotSupported
 }
-func (c *Client) Invite(context.Context, core.ChannelRef, []core.UserRef) error { return core.ErrNotSupported }
-func (c *Client) SetTopic(context.Context, core.ChannelRef, string) error       { return core.ErrNotSupported }
+func (c *Client) Invite(context.Context, core.ChannelRef, []core.UserRef) error {
+	return core.ErrNotSupported
+}
+func (c *Client) SetTopic(context.Context, core.ChannelRef, string) error {
+	return core.ErrNotSupported
+}
 func (c *Client) LookupUserByEmail(context.Context, string) (core.UserRef, error) {
 	return core.UserRef{}, core.ErrNotSupported
 }

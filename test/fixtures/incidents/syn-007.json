@@ -1,0 +1,45 @@
+{
+  "context": "{\"key\": \"SYN-007\", \"title\": \"Reports API slow\", \"services\": [\"reports\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "cpu"
+      ],
+      [
+        "throttl",
+        "limit"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "query_metric",
+      "list_events"
+    ],
+    "rootCause": "CPU throttling from a too-low CPU limit set in the last config change"
+  },
+  "id": "syn-007",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[{\"title\": \"Helm upgrade reports: resources.limits.cpu 2 -> 250m\"}]"
+      }
+    ],
+    "query_metric": [
+      {
+        "output": "[{\"metric\": \"container.cpu.throttled\", \"scope\": \"service:reports\", \"max\": 0.85, \"avg\": 0.7}]"
+      }
+    ]
+  },
+  "services": [
+    "reports"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Reports API slow"
+}

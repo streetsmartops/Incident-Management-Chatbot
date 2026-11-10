@@ -17,8 +17,8 @@ var Sections = []string{"summary", "impact", "detection", "timeline", "root_caus
 // Engine implements core.PostmortemEngine.
 type Engine struct {
 	Store    core.Store
-	Slo      core.SloSource   // optional
-	LLM      core.LlmPort     // optional; without it narrative sections are left for the IC
+	Slo      core.SloSource    // optional
+	LLM      core.LlmPort      // optional; without it narrative sections are left for the IC
 	Itsm     core.ItsmProvider // optional; action items become tickets on publish
 	Redactor *core.Redactor
 	Now      func() time.Time

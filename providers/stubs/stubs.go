@@ -57,8 +57,8 @@ func (ServiceNow) CreateActionItem(context.Context, *core.Incident, core.ActionI
 // Observability is a planned ObservabilityProvider (Prometheus/Alertmanager, Grafana).
 type Observability struct{ Kind string }
 
-func (o Observability) Name() string                          { return o.Kind }
-func (Observability) Capabilities() map[core.Capability]bool  { return map[core.Capability]bool{} }
+func (o Observability) Name() string                         { return o.Kind }
+func (Observability) Capabilities() map[core.Capability]bool { return map[core.Capability]bool{} }
 func (o Observability) QueryMetric(context.Context, string, time.Time, time.Time) ([]core.Series, error) {
 	return nil, planned(o.Kind)
 }
@@ -77,8 +77,8 @@ func (o Observability) Events(context.Context, string, time.Time, time.Time) ([]
 // Cloud is a planned CloudProvider (aws, gcp, azure).
 type Cloud struct{ Kind string }
 
-func (c Cloud) Name() string     { return c.Kind }
-func (Cloud) Scopes() []string   { return nil }
+func (c Cloud) Name() string   { return c.Kind }
+func (Cloud) Scopes() []string { return nil }
 func (c Cloud) ListWorkloads(context.Context, string, string) ([]core.Workload, error) {
 	return nil, planned(c.Kind)
 }
@@ -100,7 +100,7 @@ func (c Cloud) Verify(context.Context, core.ActionSpec) (string, error)  { retur
 // SloSource is a planned SloSource (datadog-slo, nobl9).
 type SloSource struct{ Kind string }
 
-func (s SloSource) Name() string { return s.Kind }
+func (s SloSource) Name() string                                 { return s.Kind }
 func (s SloSource) ListSlos(context.Context) ([]core.Slo, error) { return nil, planned(s.Kind) }
 func (s SloSource) GetSlo(context.Context, string) (core.Slo, error) {
 	return core.Slo{}, planned(s.Kind)

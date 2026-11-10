@@ -1,0 +1,44 @@
+{
+  "context": "{\"key\": \"SYN-008\", \"title\": \"Uploads failing\", \"services\": [\"uploads\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "disk",
+        "volume",
+        "storage",
+        "no space"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "search_logs",
+      "query_metric"
+    ],
+    "rootCause": "Disk full on the uploads persistent volume"
+  },
+  "id": "syn-008",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "query_metric": [
+      {
+        "output": "[{\"metric\": \"kubernetes.kubelet.volume.stats.used_bytes\", \"max\": 99.8, \"last\": 99.8}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"write /data/tmp/abc: no space left on device\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "uploads"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Uploads failing"
+}

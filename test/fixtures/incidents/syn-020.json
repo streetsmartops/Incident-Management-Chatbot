@@ -1,0 +1,44 @@
+{
+  "context": "{\"key\": \"SYN-020\", \"title\": \"Cron jobs running twice\", \"services\": [\"scheduler\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "clock",
+        "ntp",
+        "time sync",
+        "skew"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "search_logs",
+      "k8s_events"
+    ],
+    "rootCause": "Clock skew on scheduler nodes after NTP failure"
+  },
+  "id": "syn-020",
+  "recordings": {
+    "k8s_events": [
+      {
+        "output": "[{\"title\": \"Warning Node/sched-1: NTP sync failed (chronyd)\"}]"
+      }
+    ],
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"lease renewal rejected: clock skew 94s exceeds tolerance\", \"status\": \"warn\"}]"
+      }
+    ]
+  },
+  "services": [
+    "scheduler"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Cron jobs running twice"
+}

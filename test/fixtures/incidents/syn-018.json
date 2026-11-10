@@ -1,0 +1,49 @@
+{
+  "context": "{\"key\": \"SYN-018\", \"title\": \"Elevated errors across regions\", \"services\": [\"edge\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "network",
+        "region",
+        "provider",
+        "cloud"
+      ],
+      [
+        "outage",
+        "degrad",
+        "packet loss"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "list_events",
+      "search_logs"
+    ],
+    "rootCause": "Cloud provider regional network outage"
+  },
+  "id": "syn-018",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[{\"title\": \"AWS Health: increased packet loss in eu-central-1\", \"source\": \"aws\"}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"context deadline exceeded (Client.Timeout exceeded)\", \"status\": \"error\"}, {\"message\": \"context deadline exceeded (Client.Timeout exceeded)\", \"status\": \"error\"}, {\"message\": \"context deadline exceeded (Client.Timeout exceeded)\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "edge"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Elevated errors across regions"
+}

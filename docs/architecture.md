@@ -1,6 +1,6 @@
 # Incident Management Chatbot — Architecture & Design (v1 proposal)
 
-Status: **DRAFT — awaiting approval (Step 1 gate).** No code is written until this is approved.
+Status: **APPROVED (2026-11-10) — v1 implemented.** Changes made after approval are marked *(post-approval)*.
 Owner: Platform/SRE · Last updated: 2026-11-10
 
 Conventions: `UNVERIFIED` = a vendor detail I could not check against primary docs in this
@@ -22,7 +22,10 @@ Everything about Multiplexer is verified from its source code (commit `e14d5ca`,
 | Auto-declare | **SEV1/SEV2 only**; SEV3/4 are proposed with one-click declare |
 | LLM | Anthropic API (`claude-opus-5-5`) via `LlmPort`; Bedrock/Vertex adapters as stubs, private-endpoint ready |
 | Remediation v1 | Catalog + approval engine built and tested; **executors disabled (dry-run only)** |
-| Stack | **Go** (core service) + **Python** (AI engines) — see §2.1 |
+| Database | Dedicated Postgres schema (`database.schema`, default `incident_bot`) (Q3) |
+| War rooms | Public by default; `declare --private` (Q4) |
+| K8s clusters/namespaces, Jira project/issue types, vendor keys | Configured at deployment; every integration off until enabled (Q5, Q6) |
+| Stack | **Go** single service incl. the agent loop (Q1 = Go); **Python** for the offline eval harness only — see §2.1 *(post-approval)* |
 | Multiplexer PRs | Against `main`, each flagging that `dev` (per its CLAUDE.md) does not exist |
 | Severity policy | Default matrix (§5), overridable by a company policy file |
 | Triage eval | Synthetic fixtures now; optional historical import capped at **90 days** |
@@ -34,98 +37,79 @@ Everything about Multiplexer is verified from its source code (commit `e14d5ca`,
 ```mermaid
 flowchart LR
   subgraph Chat
-    SL[Slack Events / Slash / Interactivity]
+    SL[Slack slash commands + interactivity]
     TM[Teams Bot Framework<br/>optional]
   end
   subgraph Sources
     PDW[PagerDuty Webhooks v3]
     MPX[Multiplexer<br/>/api/slo-guardrails poll]
-    DDW[Datadog monitor webhook<br/>v2]
   end
 
-  subgraph incidentd["incidentd (Go)"]
+  subgraph incidentd["incidentd (single Go service)"]
     CA[chat/ adapters<br/>verify + normalise]
     IN[ingest/<br/>verify + normalise + dedupe]
     CORE[core/<br/>state machine · severity policy<br/>append-only timeline · RBAC]
-    REM[remediation/<br/>catalog · approvals · executor DISABLED]
-    TG[core/tools<br/>read-only tool gateway<br/>redaction]
-    P[(ports → providers/<br/>pagerduty · datadog · jira<br/>kubernetes · multiplexer)]
-    DB[(Postgres)]
+    REM[remediation/<br/>catalog · approvals · executor behind 2-key kill switch]
+    TR[triage/<br/>agent loop · read-only tool executor · redaction · validation]
+    PM[postmortem/<br/>metrics · drafter · BM25]
+    P[(ports → providers/<br/>pagerduty · datadog · jira<br/>kubernetes · multiplexer · anthropic)]
+    DB[(Postgres<br/>dedicated schema)]
   end
-
-  subgraph brain["brain (Python)"]
-    TR[triage/<br/>agent loop · schema validation]
-    PM[postmortem/<br/>drafter · BM25 retrieval]
-    LLM[LlmPort → Anthropic API<br/>Bedrock/Vertex stubs]
-  end
+  EV[eval/ Python<br/>offline corpus + scorer]
 
   SL --> CA
   TM --> CA
   PDW --> IN
   MPX --> IN
-  DDW -.v2.-> IN
   CA --> CORE
   IN --> CORE
   CORE <--> DB
   CORE --> REM
-  CORE -- "triage / draft request" --> TR
-  CORE -- "triage / draft request" --> PM
-  TR -- "read-only tool calls" --> TG
-  PM -- "timeline + metrics read" --> TG
-  TG --> P
-  REM --> P
+  CORE --> TR
+  CORE --> PM
+  TR -- read-only --> P
+  PM --> P
+  REM -- after recorded approvals --> P
   CORE --> P
-  TR --> LLM
-  PM --> LLM
+  EV -. scores JSONL from incidentd eval run .-> TR
 ```
 
-### 2.1 Why Go + Python (and where the line is)
+### 2.1 Go service, Python eval *(post-approval: Q1 = Go)*
 
-You picked both. To avoid two codebases each talking to every vendor, the split is strict:
+The agent loop moved into Go, so there is **one runtime service, `incidentd`**. The original
+split (Python `brain` service) was dropped; its security property is kept *inside* the process:
 
-| Service | Language | Owns | Holds credentials for |
-|---|---|---|---|
-| `incidentd` | Go | Chat adapters, ingest, state machine, timeline, severity, approvals, remediation executor, **all vendor adapters**, read-only tool gateway, Postgres | Slack, Teams, PagerDuty, Datadog, Jira, Kubernetes, Multiplexer, DB |
-| `brain` | Python | Triage agent loop, postmortem drafting, BM25 retrieval, eval harness, `LlmPort` | **LLM only** + a scoped token for the tool gateway |
-
-Consequences:
-- The model can only ever reach vendors through `incidentd`'s **read-only tool gateway**. The
-  Python process has no vendor credentials, so a compromised or prompt-injected triage loop cannot
-  write anywhere.
-- Redaction happens in Go **before** tool output leaves `incidentd`, so raw secrets/PII never reach the
-  Python process or the LLM.
-- Contracts live in `schemas/*.json` (JSON Schema). Go structs and Pydantic models are generated from
-  them; CI fails if either side drifts.
-- `brain` is stateless. `incidentd` persists every request/response to the timeline.
-- Transport: internal HTTP + JSON, mutual auth by mTLS in-cluster (fallback: HMAC-signed service
-  token with 60 s skew window).
-
-Alternative I considered: TypeScript monolith (matches Multiplexer). Rejected because you chose Python/Go.
-Alternative 2: everything in Go including the agent loop. Viable — the Anthropic Go SDK exists —
-but Python is stronger for the eval harness and BM25/pgvector work. Open question Q1.
+- The model reaches vendors only through the **read-only tool executor** (`triage.LiveExecutor`).
+  It has no write tools; only catalog IDs can become `ActionRequest`s, and only a human click
+  creates one. Execution re-derives approvals from the hash-verified timeline (§8.4).
+- Redaction happens in the executor before tool output is wrapped and sent to the LLM.
+- **Python** (`eval/`) generates the synthetic corpus and scores eval runs. It is offline
+  tooling: no credentials, not deployed.
 
 ### 2.2 Repository layout
 
 ```
-cmd/incidentd/            Go entrypoint
-core/                     Go: domain model, state machine, timeline, severity policy, RBAC, ports (interfaces), tools gateway
+cmd/incidentd/            Go entrypoint: serve | config-check | verify-timeline | eval
+core/                     Go: domain model, state machine, timeline, severity policy, RBAC, ports, service, commands
 chat/slack/  chat/teams/  Go chat adapters (Teams behind feature flag)
 providers/                Go adapters: pagerduty/ datadog/ jira/ kubernetes/ multiplexer/
                           stubs (fail loudly): opsgenie/ servicenow/ prometheus/ aws/ gcp/ azure/
 ingest/                   Go: webhook handlers, normalisers, Multiplexer poller, dedupe
 remediation/              Go: catalog loader, approval engine, executor (disabled), catalog/*.yaml
-triage/                   Python: agent loop, tool client, output schema, eval/
-postmortem/               Python: drafter, retrieval (BM25 v1, pgvector v2)
+triage/                   Go: agent loop, read-only tool executor, output validation, replay executor
+postmortem/               Go: metrics, drafter, retrieval (BM25 v1, pgvector v2)
+eval/                     Python: synthetic corpus generator, scorer + gate report
 config/                   example config, severity-policy.yaml, approval-policy.yaml
 db/migrations/            SQL migrations (Postgres 16)
-schemas/                  JSON Schema contracts shared by Go and Python
 test/fixtures/            recorded webhook payloads, Multiplexer responses, synthetic incidents
+test/fakes, test/storetest  port fakes and the Store conformance suite
 deploy/                   Helm chart, Slack app manifest, Teams app manifest
 ```
 
-Config validation: the master prompt says "Zod-validated". Zod is TypeScript. The equivalent here is
-typed config structs + `go-playground/validator` (Go) and Pydantic v2 (Python), both validating the
-same `schemas/config.schema.json`. Startup fails with field-level errors if config is invalid.
+Config validation: the master prompt says "Zod-validated". Zod is TypeScript; the Go equivalent here is
+typed structs decoded with unknown-field rejection plus an explicit `Validate()` that reports every
+problem at once (`config/config.go`). Secrets are never accepted in YAML — only env `NAME` or
+`NAME_FILE`.
 
 ---
 
@@ -141,7 +125,7 @@ All Go ports live in `core/ports`. Each returns domain types only; vendor types 
 | `ItsmProvider` | `CreateIncidentTicket(Incident) → TicketRef` · `Update(TicketRef, fields)` · `Comment(TicketRef, text)` · `CreateActionItem(Postmortem, item) → TicketRef` | Jira Cloud | ServiceNow |
 | `CloudProvider` | Read: `ListWorkloads(scope)` · `GetWorkload(ref)` · `Events(ref, since)` · `RolloutHistory(ref)` · `PodLogs(ref, since, tail)`. Write: `DryRun(Action) → Diff` · `Execute(Action) → Result` (**returns `ErrExecutorDisabled` in v1**) | Kubernetes (read) | AWS, GCP, Azure |
 | `SloSource` | `ListSlos() → []Slo` · `GetSlo(id) → Slo` · `SloEvents(id, limit) → []SloEvent` · `TenantFor(sloID) → (Tenant, ok)` · `BudgetBurned(id, from, to) → (pct, quality)` | Multiplexer | Datadog SLOs, Nobl9 |
-| `LlmPort` (Python) | `complete(system, messages, tools, output_schema, budget) → Completion` | Anthropic API | Bedrock, Vertex (private endpoints: PrivateLink / Private Service Connect) |
+| `LlmPort` | `NewConversation(system, tools, maxTokens) → Send / SendToolResults` (adapter keeps opaque history incl. thinking blocks) | Anthropic API (official Go SDK, refusal fallbacks on) | Bedrock, Vertex (private endpoints: PrivateLink / Private Service Connect) |
 
 `Capabilities()` drives which triage tools are exposed (§6.1): a tool is hidden if no configured adapter supports it.
 
@@ -206,7 +190,8 @@ stateDiagram-v2
 ```
 
 Rules: every transition is a `TimelineEvent`; any other transition is rejected with the allowed list.
-`resolved → closed` is blocked for SEV1/2 (postmortem mandatory). Reopen after 72 h creates a new linked incident.
+`resolved → closed` is blocked for SEV1/2 (postmortem mandatory). After 72 h a reopen is refused and the responder
+declares a new incident (linking is manual in v1).
 
 ### 5.2 Default severity matrix (SLO status × tenant tier)
 
@@ -216,7 +201,8 @@ Rules: every transition is a `TimelineEvent`; any other transition is rejected w
 | `at_risk` | **SEV2** | SEV3 | SEV4 | SEV3 (proposed) |
 | `timeout` / `no_data` (monitoring gap) | SEV3 | SEV4 | SEV4 | SEV4 |
 
-Modifiers: ≥ 3 tenants on the same breached service → +1 level (max SEV1). Manual `sev` always wins and is logged.
+Modifiers: ≥ 3 tenants with a non-ok SLO on the same service → +1 level (max SEV1); tracked per process from
+SLO signals. Manual `sev` always wins and is logged.
 
 **Auto-declare rule (Q6 = b):** auto-declare iff computed SEV ∈ {SEV1, SEV2} **and** tier is known **and** the
 status persisted ≥ 2 consecutive Multiplexer evaluations (~2 min, configurable) **and** no open incident already
@@ -224,8 +210,8 @@ holds the same `dedupKey`. Otherwise the bot posts a *proposal* card (Declare / 
 `timeout`/`no_data` never auto-declare.
 
 **Company policy override (Q11):** `config/severity-policy.yaml` replaces the matrix, modifiers and auto-declare
-thresholds; validated at startup against `schemas/severity-policy.schema.json`; hot-reloaded on SIGHUP; each load
-writes its hash to the audit log.
+thresholds; validated at startup (restart to apply changes); its SHA-256 is logged at startup and recorded
+on every `declared` timeline event.
 
 ---
 
@@ -268,7 +254,7 @@ Status cadence: SEV1 30 m, SEV2 60 m, SEV3/4 none; the bot nudges the IC when ov
 
 There is no write tool. `recommendedActions` are text proposals; turning one into an `ActionRequest` requires a human click.
 
-### 7.2 Output contract (`schemas/triage-result.schema.json`)
+### 7.2 Output contract (`triage.Result`; tool schema in `triage/agent.go` `submitSchema`)
 
 ```json
 {
@@ -293,15 +279,16 @@ There is no write tool. `recommendedActions` are text proposals; turning one int
 | Prompt injection | Tool output wrapped as untrusted data in a delimited block; system prompt states it is data, not instructions; model has no write tools; actions restricted to catalog IDs regardless of output |
 | Redaction | Go gateway redacts before returning: secrets (key/token patterns, `Authorization:` headers, AWS key IDs, JWTs, connection strings), emails → hashed tokens, IPs optional; per-adapter allow-list of fields |
 | Action restriction | `recommendedActions[].actionId` ∉ catalog → removed; params validated against catalog schema; `risk` overwritten from catalog |
-| Schema | Pydantic validation; one repair retry on invalid JSON; then fail closed with "triage unavailable" message |
+| Schema | Strict decode (unknown fields rejected); one repair retry on an invalid result; then fail closed with an error |
 | Confidence | Shown as Low/Med/High buckets, never a bare percentage, to avoid false precision at 3 a.m. |
 
 ### 7.4 Evaluation plan (Q12)
 
 - **Corpus:** ≥ 20 synthetic incidents in `test/fixtures/incidents/` (recorded-shape tool responses + ground-truth
   root cause + "evidence that matters"). Labelled **`NOT REPRESENTATIVE`** in every report.
-- **Historical (optional):** `brain eval import --since 90d` pulls PD incidents, Jira tickets and Slack war-room
-  history; hard cap 90 days, redaction applied at import, stored only in the eval DB.
+- **Historical (optional):** `incidentd eval import-pagerduty --since 2160h` writes skeleton fixtures for resolved
+  PagerDuty incidents (hard cap 90 days, titles redacted). A human labels the ground truth and adds recordings;
+  unlabelled fixtures are skipped by the scorer. Jira/Slack history import is not in v1.
 - **Metrics:** top-1 hypothesis accuracy, top-3 accuracy, evidence precision (cited refs judged relevant / all
   cited refs), uncited-hypothesis rate (must be 0 after filtering), non-catalog action rate (must be 0), p95 latency,
   cost per run.
@@ -333,8 +320,11 @@ verify:
   timeout: 5m
 ```
 
-v1 catalog: `k8s.rollout_restart` (low) · `k8s.scale_deployment` (medium, bounded min/max) · `k8s.rollout_undo` (high) ·
-`datadog.mute_monitor` (low, ≤ 2 h) · `pagerduty.escalate` (low).
+v1 catalog: `k8s.rollout_restart` (low) · `k8s.scale_deployment` (medium, 1–50 replicas) · `k8s.rollout_undo` (high).
+*(post-approval)* `datadog.mute_monitor` and `pagerduty.escalate` moved to v2: they need write
+adapters for Datadog/PagerDuty, and v1 keeps those integrations read-only / paging-only.
+Parameter specs are a constrained JSON-Schema subset (type, required, pattern, enum, min, max);
+unknown parameters are rejected.
 
 ### 8.2 Approval policy
 
@@ -402,15 +392,15 @@ v2 pgvector embeddings with hybrid ranking.
 
 | Area | Control |
 |---|---|
-| Slack inbound | Signing-secret HMAC-SHA256 over `v0:{timestamp}:{body}`, header `X-Slack-Signature`, reject if `X-Slack-Request-Timestamp` skew > 5 min — **UNVERIFIED** (from memory; api.slack.com blocked) |
-| Teams inbound | Bot Framework JWT: validate against OpenID metadata/JWKS, issuer, audience = app ID, `serviceUrl` claim — **UNVERIFIED** (learn.microsoft.com blocked) |
-| PagerDuty inbound | Webhooks v3 HMAC-SHA256 signature header `X-PagerDuty-Signature` (`v1=…`) — **UNVERIFIED** |
+| Slack inbound | Signing-secret HMAC-SHA256 over `v0:{timestamp}:{body}`, header `X-Slack-Signature`, reject if `X-Slack-Request-Timestamp` skew > 5 min — verified (docs.slack.dev) |
+| Teams inbound | Bot Framework JWT: OpenID metadata/JWKS, issuer `https://api.botframework.com`, audience = app ID, 5 min skew, `serviceUrl` claim, key endorsements for `channelId` — verified (learn.microsoft.com) |
+| PagerDuty inbound | Webhooks v3 HMAC-SHA256 over raw body, header `X-PagerDuty-Signature` (`v1=…`, comma-separated) — verified from `go-pagerduty` v1.8.0 `webhookv3` source (PagerDuty docs host still unreachable) |
 | Multiplexer | Bot uses a scoped service token (`views:read`) once PR G2 lands; until then only the unauthenticated guardrail GETs are usable |
 | Identity | chat user → profile email → PD user / Azure AD UPN; unmapped users can read and `declare` but cannot approve |
 | Credentials | One credential per adapter, least privilege (PD: read + incident write; Jira: one project; Datadog: read-only app key scopes; K8s: read-only SA); loaded from mounted secrets (K8s Secret / Vault agent), never env-logged, never in prompts |
 | LLM data | Redaction in Go gateway; no raw payloads to the LLM; Anthropic API over TLS; Bedrock/Vertex adapters require private endpoints |
 | Audit | Hash-chained append-only timeline; structured logs with `incident_id` + `correlation_id`; approvals record who/when/what diff |
-| Service-to-service | mTLS between `incidentd` and `brain`; `brain` token scoped to tool gateway read endpoints |
+| Admin API | `POST /admin/remediation?enabled=`, `GET /admin/timeline/verify` behind `INCIDENTD_ADMIN_TOKEN` (constant-time compare) |
 
 ---
 
@@ -418,9 +408,9 @@ v2 pgvector embeddings with hybrid ranking.
 
 | Phase | Scope | Exit gate (measurable) |
 |---|---|---|
-| P0 Foundations | Repo, CI (Go vet/test, ruff/mypy/pytest, schema drift check), config, migrations, health | CI green; config fails fast on invalid input |
+| P0 Foundations | Repo, CI (gofmt, go vet, `go test -race` incl. Postgres service, pytest, fixture drift check), config, migrations, health | CI green; config fails fast on invalid input |
 | P1 Declare & coordinate | Slack: all 10 verbs, war room, roles, PD paging, Jira ticket, cadence, timeline; Multiplexer + PD ingest; auto-declare SEV1/2; Teams adapter behind flag | Game-day: declare→resolve end-to-end on Slack; 100 % of commands produce timeline events; signature-verification tests pass on recorded fixtures; duplicate PD+Multiplexer signal → 1 incident |
-| P2 Triage | Tool gateway, agent loop, schema, guardrails, eval harness | §7.4 metrics reported on ≥ 20 incidents; 0 uncited hypotheses; 0 non-catalog actions |
+| P2 Triage | Read-only tool executor, agent loop, validation, guardrails, eval harness | §7.4 metrics reported on ≥ 20 incidents; 0 uncited hypotheses; 0 non-catalog actions |
 | P3 Remediation (dry-run) | Catalog, approval engine, approval cards, dry-run diffs | Approval-policy tests incl. two-person + expiry; invariant test (§8.4) |
 | P3b Remediation live (low risk) | Apply write RBAC, flip kill switch for `low` only | **Only after P2 gate passes with ≥ 10 historical incidents** + security review sign-off |
 | P4 Postmortem | Drafter, metrics, action items → Jira, BM25 | Metrics match hand-computed values on fixtures; IC accepts draft with edits on ≥ 3 drill incidents |
@@ -432,7 +422,7 @@ v2 pgvector embeddings with hybrid ranking.
 
 | ID | Gap (file) | PR | Tests |
 |---|---|---|---|
-| G1 | `/api/slo-guardrails/**` has no `requirePermission` on any method (`src/routes/api/slo-guardrails/**`) | Add `views:read` / `views:write` checks | Handler tests: 401/403/200 |
+| G1 | `/api/slo-guardrails/**` has no `requirePermission` on any method, and the unauthenticated GETs return `pagerduty_service_key` (a PagerDuty routing key) | Add `views:read` / `views:write` checks; stop returning `pagerduty_service_key` | Handler tests: 401/403/200, key not in response |
 | G2 | Cookie-session-only auth; no machine identity (`src/lib/server/auth/middleware.ts`) | Hashed, scoped, expiring service tokens via `Authorization: Bearer`; CSRF skipped only for bearer-authenticated requests | Token validation, scope, expiry, CSRF bypass only with bearer |
 | G3 | Guardrail → tenant requires 3 joins; not exposed | Embed `tenant {id, slug, tier}` in guardrail GET responses | Response-shape tests |
 | G4 | Current burn rate / budget only in events written on status change (`slo-guardrails.ts`) | Persist last computed metrics on `slo_guardrails` (migration V10) | Evaluator test asserts persistence each cycle |
@@ -448,21 +438,26 @@ Postmortem figures will differ from Datadog SLOs; documented, not changed.
 | # | Risk | Mitigation |
 |---|---|---|
 | R1 | Vendor details marked UNVERIFIED are wrong | Verify against docs before P1 code freeze (needs doc hosts allowed, or you confirm); recorded-fixture tests per adapter |
-| R2 | **No maintained Go SDK for Teams.** `msbotbuilder-go` last released 2021-10. Microsoft 365 Agents SDK exists for Python (`microsoft-agents-hosting-teams` 1.9.0) | Implement the Bot Framework REST protocol directly in Go (JWT validation + POST to `serviceUrl`), small surface; fallback: Teams adapter as a thin Python sidecar using the Agents SDK. Open question Q2 |
-| R3 | Two languages = two toolchains | Strict boundary (§2.1), generated contracts, single Helm chart, one CI pipeline |
+| R2 | **No maintained Go SDK for Teams.** `msbotbuilder-go` last released 2021-10 | Implemented the Bot Framework REST protocol directly in Go (`chat/teams`), Q2 = as proposed. Python sidecar on the Agents SDK remains the fallback |
+| R3 | Two languages = two toolchains | Python limited to offline eval tooling; one CI pipeline |
 | R4 | Auto-declare noise from flapping SLOs | 2-evaluation persistence, dedupe on `dedupKey`, SEV1/2 only, weekly review of auto-declares |
 | R5 | Budget burned is stale until G4 | `quality` flag shown in postmortem |
 | R6 | LLM hallucinated causes | Citation enforcement in code; confidence buckets; remediation gated on eval |
 
-## 14. Open questions
+## 14. Decisions on the Step 1 open questions
 
-- **Q1** Agent loop in Python (proposed) or all-Go? Proposal keeps vendor access in Go either way.
-- **Q2** Teams: Go REST implementation (proposed) or Python sidecar?
-- **Q3** Postgres: dedicated instance for the bot, or a schema on an existing cluster?
-- **Q4** War-room channels: public by default, private for security incidents (`--private`)?
-- **Q5** Which K8s clusters/contexts and namespaces are in scope for read access?
-- **Q6** Jira project key and issue type for incident tickets and action items?
-- **Q7** Allow doc hosts (`api.slack.com`, `developer.pagerduty.com`, `learn.microsoft.com`, `developer.atlassian.com`) in this session's network settings so I can clear the UNVERIFIED items?
+| Q | Decision |
+|---|---|
+| Q1 | Agent loop in **Go** |
+| Q2 | Teams in Go (REST protocol), as proposed |
+| Q3 | Dedicated Postgres schema (`database.schema`) |
+| Q4 | War rooms public by default |
+| Q5 | Clusters/namespaces configured at deployment (`kubernetes.clusters[]`) |
+| Q6 | Jira project and issue types configured at deployment |
+| Q7 | Doc hosts allowed; Slack, Teams, Jira, Datadog verified; PagerDuty docs host still unresolvable (verified from SDK source instead) |
+
+Remaining open items: Teams member `email`/`userPrincipalName` fields and the PagerDuty v3
+`incident_key` field and full event-type list are `UNVERIFIED` (see Appendix A).
 
 ---
 
@@ -470,14 +465,15 @@ Postmortem figures will differ from Datadog SLOs; documented, not changed.
 
 | Item | Status | Source |
 |---|---|---|
-| Multiplexer endpoints, types, auth, PD dedup key, tenant tiers | Verified | Source code, `main@e14d5ca` |
+| Multiplexer endpoints, types, auth, PD dedup key `slo-guardrail-{id}`, PD title `SLO Breach: {name}`, tenant `view_ids`, view `service.owner` | Verified | Source code, `main@e14d5ca` |
 | Multiplexer `dev` branch | **Absent** (only `main` + 4 feature branches) | `git branch -a` |
-| Datadog `POST /api/v2/logs/events/search` (regional hosts) | Verified | docs.datadoghq.com/api/latest/logs |
-| Datadog metrics query, monitors, events endpoints | UNVERIFIED | not yet fetched |
-| Slack signing, Events API, Block Kit, `conversations.create` | UNVERIFIED | host blocked |
-| PagerDuty REST v2, Webhooks v3 signatures | UNVERIFIED | host blocked |
-| Teams Bot Framework auth | UNVERIFIED | host blocked |
-| Jira Cloud REST v3 | UNVERIFIED | not yet fetched |
-| Go SDKs exist: `slack-go/slack` v0.35.0, `PagerDuty/go-pagerduty` v1.8.0, `DataDog/datadog-api-client-go/v2` v2.67.0, `k8s.io/client-go` v0.37.2, `andygrunwald/go-jira` v1.17.0, `jackc/pgx/v5` v5.12.0 | Verified | proxy.golang.org |
-| Python packages: `anthropic` 2.7.0, `rank-bm25` 0.2.2, `pydantic` 2.14.3, `slack-bolt` 1.30.0, `microsoft-agents-hosting-teams` 1.9.0 | Verified | PyPI |
-| Toolchain in build env: Go 1.24.7, Python 3.13.18 | Verified | local |
+| Datadog: `GET /api/v1/query`, `POST /api/v2/logs/events/search`, `GET /api/v1/monitor` (`group_states`, `monitor_tags`), `GET /api/v2/events` (`filter[...]`), headers `DD-API-KEY` / `DD-APPLICATION-KEY`, response field names | Verified | docs.datadoghq.com + datadog-api-client-go v2.67.0 models |
+| Slack: request signing, slash-command fields, 3 s ack, `response_url`, `block_actions` payload, method scopes | Verified | docs.slack.dev |
+| Teams: Bot Connector JWT rules, token endpoint/scope, `/v3/conversations/...` activities and members endpoints, `<at>` mentions | Verified | learn.microsoft.com |
+| Teams member `email` / `userPrincipalName` fields | **UNVERIFIED** | docs page shows SDK samples only |
+| Jira Cloud v3: `POST /rest/api/3/issue`, `POST /rest/api/3/issue/{key}/comment`, ADF bodies, Basic `email:api_token` | Verified | developer.atlassian.com |
+| PagerDuty: v3 signature scheme, envelope, REST calls, `From` header for notes | Verified from source | go-pagerduty v1.8.0 |
+| PagerDuty: full v3 incident event-type list; `incident_key` in v3 incident data | **UNVERIFIED** | developer.pagerduty.com unresolvable from this environment |
+| Anthropic: official Go SDK v2.8.0 beta Messages, `fallbacks: "default"` + `server-side-fallback-2026-07-01`, adaptive thinking default on `claude-opus-5-5`, effort via `output_config` | Verified | SDK source + Claude API reference |
+| Go modules: slack-go v0.35.0, go-pagerduty v1.8.0, client-go v0.37.2, pgx v5, golang-jwt v5.3.1, anthropic-sdk-go v2.8.0 | Verified | proxy.golang.org |
+| Toolchain: Go 1.26.0, Python 3.13 | Verified | local |

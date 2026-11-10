@@ -1,0 +1,43 @@
+{
+  "context": "{\"key\": \"SYN-005\", \"title\": \"Intermittent name resolution failures\", \"services\": [\"gateway\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "dns",
+        "coredns",
+        "name resolution"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "k8s_events",
+      "search_logs"
+    ],
+    "rootCause": "CoreDNS pods crashlooping causing DNS resolution failures"
+  },
+  "id": "syn-005",
+  "recordings": {
+    "k8s_events": [
+      {
+        "output": "[{\"title\": \"Warning Pod/coredns-7d8: BackOff\", \"text\": \"Back-off restarting failed container\"}]"
+      }
+    ],
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"dial tcp: lookup orders.svc.cluster.local: i/o timeout\"}]"
+      }
+    ]
+  },
+  "services": [
+    "gateway"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Intermittent name resolution failures"
+}

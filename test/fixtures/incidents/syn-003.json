@@ -1,0 +1,56 @@
+{
+  "context": "{\"key\": \"SYN-003\", \"title\": \"Payments failing for all tenants\", \"services\": [\"payments\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "provider",
+        "upstream",
+        "third-party",
+        "stripe",
+        "psp"
+      ],
+      [
+        "outage",
+        "503",
+        "unavailable",
+        "down"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "search_logs",
+      "list_events"
+    ],
+    "rootCause": "Third-party payment provider outage (upstream 503s)"
+  },
+  "id": "syn-003",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[{\"title\": \"Status page: PSP Example major outage\", \"source\": \"statuspage\"}]"
+      }
+    ],
+    "rollout_history": [
+      {
+        "output": "[{\"revision\": \"12\", \"images\": [\"api=payments:v5.1.0\"], \"created\": \"2026-10-30T10:00:00Z\"}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"POST https://api.psp.example/v1/charges -> 503 Service Unavailable\", \"status\": \"error\"}, {\"message\": \"POST https://api.psp.example/v1/charges -> 503 Service Unavailable\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "payments"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Payments failing for all tenants"
+}

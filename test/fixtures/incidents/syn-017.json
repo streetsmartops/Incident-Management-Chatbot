@@ -1,0 +1,50 @@
+{
+  "context": "{\"key\": \"SYN-017\", \"title\": \"Webhooks delivery failing with 401\", \"services\": [\"webhooks\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "credential",
+        "secret",
+        "token",
+        "key"
+      ],
+      [
+        "rotat",
+        "revoked",
+        "expired",
+        "401"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "search_logs",
+      "list_events"
+    ],
+    "rootCause": "Secret rotation: service still using the revoked API credential"
+  },
+  "id": "syn-017",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[{\"title\": \"Vault: rotated secret webhooks/partner-api\"}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"upstream returned 401 Unauthorized: token revoked\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "webhooks"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Webhooks delivery failing with 401"
+}

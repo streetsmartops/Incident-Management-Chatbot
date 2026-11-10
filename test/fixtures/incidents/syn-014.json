@@ -1,0 +1,46 @@
+{
+  "context": "{\"key\": \"SYN-014\", \"title\": \"New release not serving\", \"services\": [\"billing\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "image"
+      ],
+      [
+        "pull",
+        "registry",
+        "tag"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "k8s_events",
+      "list_k8s_workloads"
+    ],
+    "rootCause": "ImagePullBackOff: release image tag missing from registry"
+  },
+  "id": "syn-014",
+  "recordings": {
+    "k8s_events": [
+      {
+        "output": "[{\"title\": \"Warning Pod/billing-api-9f: Failed\", \"text\": \"Failed to pull image registry/billing-api:v3.0.0: not found\"}]"
+      }
+    ],
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_k8s_workloads": [
+      {
+        "output": "[{\"ref\": {\"cluster\": \"prod-eu-1\", \"namespace\": \"billing\", \"kind\": \"Deployment\", \"name\": \"billing-api\"}, \"desired\": 3, \"ready\": 1, \"updated\": 3, \"images\": [\"registry/billing-api:v3.0.0\"], \"condition\": \"Progressing=False(ProgressDeadlineExceeded)\"}]"
+      }
+    ]
+  },
+  "services": [
+    "billing"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "New release not serving"
+}

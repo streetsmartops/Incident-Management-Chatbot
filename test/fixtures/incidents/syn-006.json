@@ -1,0 +1,48 @@
+{
+  "context": "{\"key\": \"SYN-006\", \"title\": \"Search pods restarting\", \"services\": [\"search\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "memory",
+        "oom",
+        "oomkilled"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "k8s_events",
+      "query_metric"
+    ],
+    "rootCause": "Memory leak causing OOMKilled restarts in search-api"
+  },
+  "id": "syn-006",
+  "recordings": {
+    "k8s_events": [
+      {
+        "output": "[{\"title\": \"Warning Pod/search-api-5c: OOMKilled\", \"text\": \"Container search-api exceeded memory limit 2Gi\"}]"
+      }
+    ],
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[]"
+      }
+    ],
+    "query_metric": [
+      {
+        "output": "[{\"metric\": \"container.memory.usage\", \"scope\": \"service:search\", \"min\": 900000000.0, \"max\": 2100000000.0, \"last\": 2100000000.0}]"
+      }
+    ]
+  },
+  "services": [
+    "search"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Search pods restarting"
+}

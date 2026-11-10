@@ -1,0 +1,44 @@
+{
+  "context": "{\"key\": \"SYN-015\", \"title\": \"API 503s under load\", \"services\": [\"api\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "hpa",
+        "autoscal",
+        "max replicas",
+        "capacity"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "list_k8s_workloads",
+      "query_metric"
+    ],
+    "rootCause": "HPA at max replicas; capacity exhausted during traffic peak"
+  },
+  "id": "syn-015",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_k8s_workloads": [
+      {
+        "output": "[{\"ref\": {\"cluster\": \"prod-eu-1\", \"namespace\": \"api\", \"kind\": \"Deployment\", \"name\": \"api-gateway\"}, \"desired\": 20, \"ready\": 20, \"updated\": 20, \"images\": [\"registry/api:v8.2\"], \"condition\": \"Available=True\"}]"
+      }
+    ],
+    "query_metric": [
+      {
+        "output": "[{\"metric\": \"kubernetes_state.hpa.current_replicas\", \"last\": 20}, {\"metric\": \"kubernetes_state.hpa.max_replicas\", \"last\": 20}]"
+      }
+    ]
+  },
+  "services": [
+    "api"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "API 503s under load"
+}

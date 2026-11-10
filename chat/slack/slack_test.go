@@ -161,9 +161,9 @@ func TestSlashCommandEndToEnd(t *testing.T) {
 }
 
 type recordingDispatcher struct {
-	mu                sync.Mutex
-	actionID, value   string
-	actor             core.UserRef
+	mu              sync.Mutex
+	actionID, value string
+	actor           core.UserRef
 }
 
 func (d *recordingDispatcher) Execute(_ context.Context, _ core.CommandContext, _ core.Command) (core.Message, error) {

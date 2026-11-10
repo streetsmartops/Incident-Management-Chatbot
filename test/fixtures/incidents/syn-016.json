@@ -1,0 +1,42 @@
+{
+  "context": "{\"key\": \"SYN-016\", \"title\": \"Accounts API timeouts\", \"services\": [\"accounts\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "migration",
+        "lock"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "search_logs",
+      "list_events"
+    ],
+    "rootCause": "Long-running schema migration holding table locks"
+  },
+  "id": "syn-016",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[{\"title\": \"Job accounts-migrate-20261110 started (ALTER TABLE accounts ADD COLUMN ...)\"}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"canceling statement due to lock timeout on relation accounts\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "accounts"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Accounts API timeouts"
+}

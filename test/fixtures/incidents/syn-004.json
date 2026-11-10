@@ -1,0 +1,47 @@
+{
+  "context": "{\"key\": \"SYN-004\", \"title\": \"Login errors - TLS handshake failures\", \"services\": [\"auth\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "certificate",
+        "cert",
+        "tls"
+      ],
+      [
+        "expired",
+        "expiry",
+        "expire"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "search_logs"
+    ],
+    "rootCause": "Expired TLS certificate on the auth ingress"
+  },
+  "id": "syn-004",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"x509: certificate has expired or is not yet valid: current time 2026-11-10T02:44 is after 2026-11-10T00:00\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "auth"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Login errors - TLS handshake failures"
+}

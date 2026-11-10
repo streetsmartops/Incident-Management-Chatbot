@@ -64,16 +64,16 @@ type Result struct {
 
 // Stats describe a run (stored with the result for audit and eval).
 type Stats struct {
-	ToolCalls          int           `json:"toolCalls"`
-	Turns              int           `json:"turns"`
-	DroppedHypotheses  int           `json:"droppedHypotheses"`
-	DroppedEvidence    int           `json:"droppedEvidence"`
-	DroppedActions     int           `json:"droppedActions"`
-	InputTokens        int64         `json:"inputTokens"`
-	OutputTokens       int64         `json:"outputTokens"`
-	Duration           time.Duration `json:"durationNs"`
-	BudgetExhausted    bool          `json:"budgetExhausted"`
-	Model              string        `json:"model"`
+	ToolCalls         int           `json:"toolCalls"`
+	Turns             int           `json:"turns"`
+	DroppedHypotheses int           `json:"droppedHypotheses"`
+	DroppedEvidence   int           `json:"droppedEvidence"`
+	DroppedActions    int           `json:"droppedActions"`
+	InputTokens       int64         `json:"inputTokens"`
+	OutputTokens      int64         `json:"outputTokens"`
+	Duration          time.Duration `json:"durationNs"`
+	BudgetExhausted   bool          `json:"budgetExhausted"`
+	Model             string        `json:"model"`
 }
 
 // Run is the full triage record stored in the timeline.

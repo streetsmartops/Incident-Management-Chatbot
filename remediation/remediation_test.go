@@ -171,7 +171,9 @@ func (f *fakeCloud) Execute(_ context.Context, a core.ActionSpec) (string, error
 	f.executed = append(f.executed, a)
 	return "ok", nil
 }
-func (f *fakeCloud) Verify(context.Context, core.ActionSpec) (string, error) { return "rollout complete", nil }
+func (f *fakeCloud) Verify(context.Context, core.ActionSpec) (string, error) {
+	return "rollout complete", nil
+}
 
 func newEngine(t *testing.T, envEnabled bool) *engineHarness {
 	t.Helper()

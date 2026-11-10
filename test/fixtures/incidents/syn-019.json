@@ -1,0 +1,48 @@
+{
+  "context": "{\"key\": \"SYN-019\", \"title\": \"Shared cluster latency for many tenants\", \"services\": [\"analytics\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "tenant",
+        "neighbour",
+        "neighbor"
+      ],
+      [
+        "query",
+        "export",
+        "saturat"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "search_logs",
+      "query_metric"
+    ],
+    "rootCause": "Noisy-neighbour tenant running heavy export queries saturating the shared database"
+  },
+  "id": "syn-019",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "query_metric": [
+      {
+        "output": "[{\"metric\": \"postgresql.queries.time\", \"scope\": \"tenant:bigco\", \"max\": 48000}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"slow query 48s tenant=bigco SELECT * FROM events (export job)\", \"status\": \"warn\"}, {\"message\": \"slow query 48s tenant=bigco SELECT * FROM events (export job)\", \"status\": \"warn\"}, {\"message\": \"slow query 48s tenant=bigco SELECT * FROM events (export job)\", \"status\": \"warn\"}]"
+      }
+    ]
+  },
+  "services": [
+    "analytics"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Shared cluster latency for many tenants"
+}

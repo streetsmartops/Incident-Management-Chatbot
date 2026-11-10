@@ -1,0 +1,49 @@
+{
+  "context": "{\"key\": \"SYN-002\", \"title\": \"Orders API latency high\", \"services\": [\"orders\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "connection pool",
+        "pool exhausted",
+        "max connections",
+        "pool size"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "search_logs",
+      "list_events"
+    ],
+    "rootCause": "Database connection pool exhausted after pool size config change"
+  },
+  "id": "syn-002",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[{\"title\": \"Config change: orders db.pool.max 50 -> 5\", \"at\": \"2026-11-10T02:30:00Z\"}]"
+      }
+    ],
+    "query_metric": [
+      {
+        "output": "[{\"metric\": \"postgresql.connections\", \"max\": 5, \"avg\": 5}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"HikariPool-1 - Connection is not available, request timed out after 30000ms\", \"status\": \"error\"}, {\"message\": \"HikariPool-1 - Connection is not available, request timed out after 30000ms\", \"status\": \"error\"}, {\"message\": \"HikariPool-1 - Connection is not available, request timed out after 30000ms\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "orders"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Orders API latency high"
+}

@@ -69,9 +69,11 @@ type Service struct {
 	Now   func() time.Time
 	NewID func() string
 
-	locks       sync.Map // incidentID -> *sync.Mutex (command-level)
-	appendLocks sync.Map // incidentID -> *sync.Mutex (timeline appends)
-	wg    sync.WaitGroup
+	tenantsMu   sync.Mutex
+	badTenants  map[string]map[string]bool // service -> tenants with a non-ok SLO (per process)
+	locks       sync.Map                   // incidentID -> *sync.Mutex (command-level)
+	appendLocks sync.Map                   // incidentID -> *sync.Mutex (timeline appends)
+	wg          sync.WaitGroup
 }
 
 // NewService builds a Service.
@@ -160,16 +162,16 @@ func (s *Service) recordErr(ctx context.Context, inc *Incident, step string, err
 
 // DeclareRequest declares an incident.
 type DeclareRequest struct {
-	Title       string
-	Severity    Severity
-	Services    []string
-	Tenants     []string
-	Actor       UserRef // zero value => system (auto-declare)
-	Platform    string  // where to open the war room; default config
-	Private     *bool
-	Signals     []Signal
-	Auto        bool
-	Reason      string
+	Title    string
+	Severity Severity
+	Services []string
+	Tenants  []string
+	Actor    UserRef // zero value => system (auto-declare)
+	Platform string  // where to open the war room; default config
+	Private  *bool
+	Signals  []Signal
+	Auto     bool
+	Reason   string
 }
 
 var slugRe = regexp.MustCompile(`[^a-z0-9]+`)
@@ -523,6 +525,7 @@ func (s *Service) HandleSignal(ctx context.Context, sig Signal) (SignalOutcome, 
 		}
 	}
 	if sig.Resolved || sig.SloStatus == SloOK {
+		s.trackTenants(sig)
 		if sig.DedupKey != "" && sig.SloStatus != "" {
 			_, _ = s.store.RecordObservation(ctx, sig.DedupKey, sig.SloStatus)
 		}
@@ -536,7 +539,7 @@ func (s *Service) HandleSignal(ctx context.Context, sig Signal) (SignalOutcome, 
 		}
 		consecutive = c
 	}
-	d := s.policy.Decide(sig, 1, consecutive)
+	d := s.policy.Decide(sig, s.trackTenants(sig), consecutive)
 	if d.AutoDeclare {
 		inc, err := s.Declare(ctx, DeclareRequest{
 			Title:    sig.Title,
@@ -556,6 +559,31 @@ func (s *Service) HandleSignal(ctx context.Context, sig Signal) (SignalOutcome, 
 	}
 	s.propose(ctx, sig, d)
 	return OutcomeProposed, nil, nil
+}
+
+// trackTenants records which tenants currently have a non-ok SLO on the
+// signal's service and returns that count (multi-tenant escalation, §5.2).
+// Tracked per process; with several replicas each sees its own polls.
+func (s *Service) trackTenants(sig Signal) int {
+	if sig.Service == "" || sig.Tenant == "" || sig.SloStatus == "" {
+		return 1
+	}
+	s.tenantsMu.Lock()
+	defer s.tenantsMu.Unlock()
+	if s.badTenants == nil {
+		s.badTenants = map[string]map[string]bool{}
+	}
+	set := s.badTenants[sig.Service]
+	if set == nil {
+		set = map[string]bool{}
+		s.badTenants[sig.Service] = set
+	}
+	if sig.SloStatus == SloOK || sig.Resolved {
+		delete(set, sig.Tenant)
+	} else {
+		set[sig.Tenant] = true
+	}
+	return max(1, len(set))
 }
 
 func (s *Service) enrich(ctx context.Context, sig *Signal) {

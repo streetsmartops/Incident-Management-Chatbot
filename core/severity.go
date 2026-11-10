@@ -17,7 +17,7 @@ type SeverityPolicy struct {
 	Matrix map[SloStatus]map[TenantTier]int `yaml:"matrix"`
 	// MultiTenantEscalation raises severity by one level when at least this
 	// many tenants are affected on the same service (0 disables).
-	MultiTenantEscalation int `yaml:"multiTenantEscalation"`
+	MultiTenantEscalation int               `yaml:"multiTenantEscalation"`
 	AutoDeclare           AutoDeclarePolicy `yaml:"autoDeclare"`
 	// Hash is the SHA-256 of the loaded file, logged for audit.
 	Hash string `yaml:"-"`

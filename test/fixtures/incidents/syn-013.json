@@ -1,0 +1,47 @@
+{
+  "context": "{\"key\": \"SYN-013\", \"title\": \"Multiple services degraded in eu-west\", \"services\": [\"platform\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "node"
+      ],
+      [
+        "notready",
+        "not ready",
+        "zone",
+        "pool"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "k8s_events",
+      "list_events"
+    ],
+    "rootCause": "Kubernetes node pool failure (nodes NotReady) in one zone"
+  },
+  "id": "syn-013",
+  "recordings": {
+    "k8s_events": [
+      {
+        "output": "[{\"title\": \"Warning Node/ip-10-0-3-7: NodeNotReady\"}, {\"title\": \"Warning Node/ip-10-0-3-7: NodeNotReady\"}, {\"title\": \"Warning Node/ip-10-0-3-7: NodeNotReady\"}]"
+      }
+    ],
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[{\"title\": \"Cloud provider: eu-west-1b instance impairment\"}]"
+      }
+    ]
+  },
+  "services": [
+    "platform"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Multiple services degraded in eu-west"
+}

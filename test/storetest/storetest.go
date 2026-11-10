@@ -17,7 +17,7 @@ func Run(t *testing.T, newStore func(t *testing.T) core.Store) {
 	t0 := time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)
 	mk := func(id, key string) *core.Incident {
 		return &core.Incident{ID: id, Key: key, Title: "t", Severity: core.Sev2, State: core.StateDeclared,
-			Roles: map[core.Role]core.UserRef{core.RoleIC: {Platform: "slack", ID: "U1", Email: "a@example.com"}},
+			Roles:     map[core.Role]core.UserRef{core.RoleIC: {Platform: "slack", ID: "U1", Email: "a@example.com"}},
 			DedupKeys: []string{"k-" + id}, WarRoom: &core.ChannelRef{Platform: "slack", ID: "C-" + id}, DetectedAt: t0}
 	}
 

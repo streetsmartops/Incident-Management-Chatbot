@@ -22,7 +22,7 @@ var ErrExecutorDisabled = errors.New("remediation executor disabled (dry-run onl
 type Button struct {
 	ActionID string `json:"actionId"` // e.g. "approve", "declare"
 	Label    string `json:"label"`
-	Value    string `json:"value"` // opaque, e.g. action request ID
+	Value    string `json:"value"`           // opaque, e.g. action request ID
 	Style    string `json:"style,omitempty"` // primary | danger
 }
 
@@ -195,26 +195,26 @@ type CloudProvider interface {
 
 // Slo is an SLO/guardrail summary.
 type Slo struct {
-	ID             string     `json:"id"`
-	Name           string     `json:"name"`
-	Service        string     `json:"service"`
-	TargetPercent  float64    `json:"targetPercent"`
-	WindowHours    int        `json:"windowHours"`
-	Status         SloStatus  `json:"status"`
-	LastEvaluated  *time.Time `json:"lastEvaluated,omitempty"`
-	Active         bool       `json:"active"`
-	ViewServiceID  *int64     `json:"viewServiceId,omitempty"`
+	ID            string     `json:"id"`
+	Name          string     `json:"name"`
+	Service       string     `json:"service"`
+	TargetPercent float64    `json:"targetPercent"`
+	WindowHours   int        `json:"windowHours"`
+	Status        SloStatus  `json:"status"`
+	LastEvaluated *time.Time `json:"lastEvaluated,omitempty"`
+	Active        bool       `json:"active"`
+	ViewServiceID *int64     `json:"viewServiceId,omitempty"`
 }
 
 // SloEvent is a status change record.
 type SloEvent struct {
-	At                   time.Time `json:"at"`
-	PreviousStatus       SloStatus `json:"previousStatus,omitempty"`
-	NewStatus            SloStatus `json:"newStatus"`
-	UptimePercent        *float64  `json:"uptimePercent,omitempty"`
-	BurnRate             *float64  `json:"burnRate,omitempty"`
-	BudgetRemainingPct   *float64  `json:"budgetRemainingPct,omitempty"`
-	Message              string    `json:"message"`
+	At                 time.Time `json:"at"`
+	PreviousStatus     SloStatus `json:"previousStatus,omitempty"`
+	NewStatus          SloStatus `json:"newStatus"`
+	UptimePercent      *float64  `json:"uptimePercent,omitempty"`
+	BurnRate           *float64  `json:"burnRate,omitempty"`
+	BudgetRemainingPct *float64  `json:"budgetRemainingPct,omitempty"`
+	Message            string    `json:"message"`
 }
 
 // Tenant is a customer tenant.

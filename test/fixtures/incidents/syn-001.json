@@ -1,0 +1,50 @@
+{
+  "context": "{\"key\": \"SYN-001\", \"title\": \"Checkout 500s spike\", \"services\": [\"checkout\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "deploy",
+        "v2.3.1",
+        "release",
+        "rollout"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "list_events",
+      "rollout_history"
+    ],
+    "rootCause": "Bad deploy checkout-api v2.3.1 (null pointer in payment step)"
+  },
+  "id": "syn-001",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[{\"at\": \"2026-11-10T02:40:00Z\", \"title\": \"Deploy checkout-api v2.3.1\", \"source\": \"argocd\"}]"
+      }
+    ],
+    "rollout_history": [
+      {
+        "match": "checkout",
+        "output": "[{\"revision\": \"7\", \"images\": [\"api=registry/checkout-api:v2.3.1\"], \"created\": \"2026-11-10T02:40:00Z\"}, {\"revision\": \"6\", \"images\": [\"api=registry/checkout-api:v2.3.0\"]}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"NullPointerException at PaymentStep.apply (v2.3.1)\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "checkout"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Checkout 500s spike"
+}

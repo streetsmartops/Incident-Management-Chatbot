@@ -1,0 +1,43 @@
+{
+  "context": "{\"key\": \"SYN-011\", \"title\": \"Checkout conversion drop\", \"services\": [\"checkout\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "feature flag",
+        "flag",
+        "new-pricing"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "list_events",
+      "search_logs"
+    ],
+    "rootCause": "Feature flag new-pricing-engine enabled for 100% returning errors"
+  },
+  "id": "syn-011",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[{\"title\": \"LaunchDarkly: new-pricing-engine rollout 10% -> 100%\", \"at\": \"2026-11-10T02:41:00Z\"}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"PricingEngineV2: missing currency table for EUR\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "checkout"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Checkout conversion drop"
+}

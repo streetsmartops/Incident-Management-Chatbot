@@ -21,19 +21,19 @@ import (
 
 // Secret names (env var, or NAME_FILE pointing at a file).
 const (
-	SecretDatabaseURL       = "DATABASE_URL"
-	SecretSlackBotToken     = "SLACK_BOT_TOKEN"
-	SecretSlackSigning      = "SLACK_SIGNING_SECRET"
-	SecretTeamsAppPassword  = "TEAMS_APP_PASSWORD"
-	SecretPagerDutyToken    = "PAGERDUTY_API_TOKEN"
-	SecretPagerDutyWebhook  = "PAGERDUTY_WEBHOOK_SECRET"
-	SecretDatadogAPIKey     = "DATADOG_API_KEY"
-	SecretDatadogAppKey     = "DATADOG_APP_KEY"
-	SecretJiraAPIToken      = "JIRA_API_TOKEN"
-	SecretMultiplexerToken  = "MULTIPLEXER_TOKEN"
-	SecretAnthropicAPIKey   = "ANTHROPIC_API_KEY"
-	SecretInternalAPIToken  = "INCIDENTD_ADMIN_TOKEN"
-	EnvRemediationEnabled   = "REMEDIATION_ENABLED"
+	SecretDatabaseURL      = "DATABASE_URL"
+	SecretSlackBotToken    = "SLACK_BOT_TOKEN"
+	SecretSlackSigning     = "SLACK_SIGNING_SECRET"
+	SecretTeamsAppPassword = "TEAMS_APP_PASSWORD"
+	SecretPagerDutyToken   = "PAGERDUTY_API_TOKEN"
+	SecretPagerDutyWebhook = "PAGERDUTY_WEBHOOK_SECRET"
+	SecretDatadogAPIKey    = "DATADOG_API_KEY"
+	SecretDatadogAppKey    = "DATADOG_APP_KEY"
+	SecretJiraAPIToken     = "JIRA_API_TOKEN"
+	SecretMultiplexerToken = "MULTIPLEXER_TOKEN"
+	SecretAnthropicAPIKey  = "ANTHROPIC_API_KEY"
+	SecretInternalAPIToken = "INCIDENTD_ADMIN_TOKEN"
+	EnvRemediationEnabled  = "REMEDIATION_ENABLED"
 )
 
 // Duration is a YAML-friendly time.Duration ("90s", "15m").
@@ -110,8 +110,8 @@ type Slack struct {
 
 // Teams settings. Secret: TEAMS_APP_PASSWORD.
 type Teams struct {
-	Enabled                bool   `yaml:"enabled"`
-	AppID                  string `yaml:"appId"`
+	Enabled bool   `yaml:"enabled"`
+	AppID   string `yaml:"appId"`
 	// TenantID selects the single-tenant token endpoint; empty = multi-tenant
 	// (login.microsoftonline.com/botframework.com).
 	TenantID               string `yaml:"tenantId"`
@@ -134,7 +134,7 @@ type PagerDuty struct {
 // Datadog settings. Secrets: DATADOG_API_KEY, DATADOG_APP_KEY.
 type Datadog struct {
 	Enabled bool   `yaml:"enabled"`
-	Site    string `yaml:"site"` // datadoghq.com, datadoghq.eu, us3.datadoghq.com …
+	Site    string `yaml:"site"`   // datadoghq.com, datadoghq.eu, us3.datadoghq.com …
 	APIURL  string `yaml:"apiUrl"` // override; default https://api.<site>
 }
 
@@ -175,7 +175,7 @@ type LLM struct {
 	Enabled   bool   `yaml:"enabled"`
 	Provider  string `yaml:"provider"` // anthropic | bedrock | vertex
 	Model     string `yaml:"model"`
-	Effort    string `yaml:"effort"`   // low | medium | high | xhigh | max
+	Effort    string `yaml:"effort"` // low | medium | high | xhigh | max
 	MaxTokens int    `yaml:"maxTokens"`
 	// Fallbacks enables server-side refusal fallbacks ("default" | "off").
 	Fallbacks string `yaml:"fallbacks"`

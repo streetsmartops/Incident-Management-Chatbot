@@ -39,9 +39,9 @@ func Tokenize(s string) []string {
 }
 
 type doc struct {
-	ref   core.SimilarIncident
-	tf    map[string]int
-	len   int
+	ref core.SimilarIncident
+	tf  map[string]int
+	len int
 }
 
 // Index is an in-memory BM25 index over past incidents.

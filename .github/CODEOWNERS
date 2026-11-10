@@ -1,0 +1,4 @@
+# Remediation catalog and approval logic require SRE lead review.
+/remediation/                @streetsmartops/sre-leads
+/deploy/k8s/rbac-*.yaml      @streetsmartops/sre-leads
+/config/severity-policy*     @streetsmartops/sre-leads

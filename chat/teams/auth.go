@@ -19,7 +19,7 @@ import (
 
 // Bot Framework constants (verified, see package doc).
 const (
-	OpenIDMetadataURL = "https://login.botframework.com/v1/.well-known/openidconfiguration"
+	OpenIDMetadataURL  = "https://login.botframework.com/v1/.well-known/openidconfiguration"
 	BotFrameworkIssuer = "https://api.botframework.com"
 	ClockSkew          = 5 * time.Minute
 )

@@ -1,0 +1,43 @@
+{
+  "context": "{\"key\": \"SYN-010\", \"title\": \"Geocoding errors\", \"services\": [\"maps\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "rate limit",
+        "429",
+        "throttl",
+        "quota"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "search_logs"
+    ],
+    "rootCause": "Third-party maps API rate limiting (HTTP 429)"
+  },
+  "id": "syn-010",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "list_events": [
+      {
+        "output": "[{\"title\": \"Marketing campaign launched\", \"source\": \"manual\"}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"GET maps.example/geocode -> 429 Too Many Requests (quota exceeded)\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "maps"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Geocoding errors"
+}

@@ -1,0 +1,26 @@
+# NOT APPLIED IN v1. Apply only after the triage eval gate passes and the
+# security review signs off (docs/architecture.md §11, phase P3b).
+# Grants exactly the verbs the action catalog needs, per allowed namespace:
+#   k8s.rollout_restart / k8s.rollout_undo -> patch deployments
+#   k8s.scale_deployment                    -> update deployments/scale
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: incidentd-remediate
+  namespace: checkout # repeat per allowed namespace
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["patch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    verbs: ["get", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: incidentd-remediate
+  namespace: checkout
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: Role, name: incidentd-remediate}
+subjects:
+  - {kind: ServiceAccount, name: incidentd, namespace: incidentd}

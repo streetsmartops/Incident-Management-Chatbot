@@ -118,16 +118,16 @@ func (x *LiveExecutor) window(inc *core.Incident, minutes int) (time.Time, time.
 }
 
 type args struct {
-	Query      string   `json:"query"`
-	MinutesBack int     `json:"minutes_back"`
-	Limit      int      `json:"limit"`
-	Tags       []string `json:"tags"`
-	SloID      string   `json:"slo_id"`
-	Cluster    string   `json:"cluster"`
-	Namespace  string   `json:"namespace"`
-	Deployment string   `json:"deployment"`
-	Tail       int      `json:"tail"`
-	Service    string   `json:"service"`
+	Query       string   `json:"query"`
+	MinutesBack int      `json:"minutes_back"`
+	Limit       int      `json:"limit"`
+	Tags        []string `json:"tags"`
+	SloID       string   `json:"slo_id"`
+	Cluster     string   `json:"cluster"`
+	Namespace   string   `json:"namespace"`
+	Deployment  string   `json:"deployment"`
+	Tail        int      `json:"tail"`
+	Service     string   `json:"service"`
 }
 
 func asJSON(v any) string {

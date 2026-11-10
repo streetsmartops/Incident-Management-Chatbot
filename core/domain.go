@@ -92,30 +92,30 @@ type ChannelRef struct {
 
 // Incident is the aggregate root.
 type Incident struct {
-	ID              string          `json:"id"`
-	Key             string          `json:"key"`
-	Title           string          `json:"title"`
-	Severity        Severity        `json:"severity"`
-	State           State           `json:"state"`
-	Services        []string        `json:"services"`
-	Tenants         []string        `json:"tenants"`
+	ID              string           `json:"id"`
+	Key             string           `json:"key"`
+	Title           string           `json:"title"`
+	Severity        Severity         `json:"severity"`
+	State           State            `json:"state"`
+	Services        []string         `json:"services"`
+	Tenants         []string         `json:"tenants"`
 	Roles           map[Role]UserRef `json:"roles"`
-	WarRoom         *ChannelRef     `json:"warRoom,omitempty"`
-	PageRefs        []string        `json:"pageRefs"`
-	TicketRef       string          `json:"ticketRef,omitempty"`
-	SloRefs         []string        `json:"sloRefs"`
-	DedupKeys       []string        `json:"dedupKeys"`
-	AutoDeclared    bool            `json:"autoDeclared"`
-	ImpactStartedAt *time.Time      `json:"impactStartedAt,omitempty"`
-	DetectedAt      time.Time       `json:"detectedAt"`
-	DeclaredAt      *time.Time      `json:"declaredAt,omitempty"`
-	AcknowledgedAt  *time.Time      `json:"acknowledgedAt,omitempty"`
-	MitigatedAt     *time.Time      `json:"mitigatedAt,omitempty"`
-	ResolvedAt      *time.Time      `json:"resolvedAt,omitempty"`
-	ClosedAt        *time.Time      `json:"closedAt,omitempty"`
-	LastStatusAt    *time.Time      `json:"lastStatusAt,omitempty"`
-	LastNudgeAt     *time.Time      `json:"lastNudgeAt,omitempty"`
-	CorrelationID   string          `json:"correlationId"`
+	WarRoom         *ChannelRef      `json:"warRoom,omitempty"`
+	PageRefs        []string         `json:"pageRefs"`
+	TicketRef       string           `json:"ticketRef,omitempty"`
+	SloRefs         []string         `json:"sloRefs"`
+	DedupKeys       []string         `json:"dedupKeys"`
+	AutoDeclared    bool             `json:"autoDeclared"`
+	ImpactStartedAt *time.Time       `json:"impactStartedAt,omitempty"`
+	DetectedAt      time.Time        `json:"detectedAt"`
+	DeclaredAt      *time.Time       `json:"declaredAt,omitempty"`
+	AcknowledgedAt  *time.Time       `json:"acknowledgedAt,omitempty"`
+	MitigatedAt     *time.Time       `json:"mitigatedAt,omitempty"`
+	ResolvedAt      *time.Time       `json:"resolvedAt,omitempty"`
+	ClosedAt        *time.Time       `json:"closedAt,omitempty"`
+	LastStatusAt    *time.Time       `json:"lastStatusAt,omitempty"`
+	LastNudgeAt     *time.Time       `json:"lastNudgeAt,omitempty"`
+	CorrelationID   string           `json:"correlationId"`
 }
 
 // IC returns the incident commander, if assigned.
@@ -139,8 +139,8 @@ type Signal struct {
 	SeverityHint Severity   `json:"severityHint,omitempty"`
 	Resolved     bool       `json:"resolved"`
 	// Acknowledged is set when a paging source reports a human ack.
-	Acknowledged bool `json:"acknowledged"`
-	ObservedAt   time.Time  `json:"observedAt"`
+	Acknowledged bool      `json:"acknowledged"`
+	ObservedAt   time.Time `json:"observedAt"`
 	// Raw is the redacted source payload, kept for audit.
 	Raw        json.RawMessage `json:"raw,omitempty"`
 	IncidentID string          `json:"incidentId,omitempty"`
@@ -166,7 +166,9 @@ type Actor struct {
 var SystemActor = Actor{Type: ActorSystem, ID: "incidentd"}
 
 // HumanActor builds an actor from a user.
-func HumanActor(u UserRef) Actor { return Actor{Type: ActorHuman, ID: u.Platform + ":" + u.ID, Email: u.Email} }
+func HumanActor(u UserRef) Actor {
+	return Actor{Type: ActorHuman, ID: u.Platform + ":" + u.ID, Email: u.Email}
+}
 
 // EventKind enumerates timeline event types.
 type EventKind string
@@ -288,11 +290,11 @@ type SimilarIncident struct {
 // IncidentMetrics are the per-incident timing metrics. Durations are nil when
 // the underlying timestamps are missing.
 type IncidentMetrics struct {
-	TTD            *time.Duration `json:"ttd,omitempty"`
-	TTA            *time.Duration `json:"tta,omitempty"`
-	TimeToDeclare  *time.Duration `json:"timeToDeclare,omitempty"`
-	TTM            *time.Duration `json:"ttm,omitempty"`
-	TTR            *time.Duration `json:"ttr,omitempty"`
-	BudgetBurned   *float64       `json:"budgetBurnedPct,omitempty"`
-	BudgetQuality  string         `json:"budgetQuality,omitempty"` // exact | stale | unavailable
+	TTD           *time.Duration `json:"ttd,omitempty"`
+	TTA           *time.Duration `json:"tta,omitempty"`
+	TimeToDeclare *time.Duration `json:"timeToDeclare,omitempty"`
+	TTM           *time.Duration `json:"ttm,omitempty"`
+	TTR           *time.Duration `json:"ttr,omitempty"`
+	BudgetBurned  *float64       `json:"budgetBurnedPct,omitempty"`
+	BudgetQuality string         `json:"budgetQuality,omitempty"` // exact | stale | unavailable
 }

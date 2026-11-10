@@ -35,7 +35,7 @@ func newHarness(t *testing.T) *harness {
 		paging: &fakes.Paging{OnCall: map[string][]core.UserRef{"checkout": {{Platform: "pagerduty", ID: "P1", Email: "oncall@example.com"}}}},
 		itsm:   &fakes.Itsm{},
 		slo: &fakes.Slo{
-			Slos: map[string]core.Slo{"7": {ID: "7", Name: "Checkout availability", Service: "checkout", Status: core.SloBreached}},
+			Slos:    map[string]core.Slo{"7": {ID: "7", Name: "Checkout availability", Service: "checkout", Status: core.SloBreached}},
 			Tenants: map[string]core.Tenant{"7": {ID: "1", Slug: "acme", Tier: core.TierEnterprise}},
 		},
 		clock: &fakes.Clock{T: time.Date(2026, 11, 10, 3, 0, 0, 0, time.UTC)},
@@ -359,5 +359,26 @@ func TestTeamsFallbackWithoutWarRoom(t *testing.T) {
 	}
 	if len(teams.PostsTo("19:ann")) == 0 {
 		t.Fatal("teams announce channel should get the declaration")
+	}
+}
+
+func TestMultiTenantEscalation(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	// Three starter tenants (SEV3 each) breaching the same service escalate to SEV2 → auto-declare.
+	for i, id := range []string{"21", "22", "23"} {
+		h.slo.Slos[id] = core.Slo{ID: id, Service: "search", Status: core.SloBreached}
+		h.slo.Tenants[id] = core.Tenant{Slug: "t" + id, Tier: core.TierStarter}
+		sig := core.Signal{Source: "multiplexer", DedupKey: "multiplexer:guardrail:" + id, SloID: id, Service: "search", Title: "Search breached " + id, SloStatus: core.SloBreached}
+		var out core.SignalOutcome
+		for j := 0; j < 2; j++ {
+			out, _, _ = h.svc.HandleSignal(ctx, sig)
+		}
+		if i < 2 && out == core.OutcomeAutoDeclared {
+			t.Fatalf("tenant %d alone (SEV3) must not auto-declare", i)
+		}
+		if i == 2 && out != core.OutcomeAutoDeclared {
+			t.Fatalf("third tenant should escalate to SEV2 and auto-declare, got %s", out)
+		}
 	}
 }

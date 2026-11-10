@@ -1,0 +1,28 @@
+# v1 RBAC: read-only access for triage. Bind one RoleBinding per namespace in
+# the kubernetes.clusters[].namespaces allow-list (example: checkout).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: incidentd
+  namespace: incidentd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: incidentd-read
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: incidentd-read
+  namespace: checkout # repeat per allowed namespace
+roleRef: {apiGroup: rbac.authorization.k8s.io, kind: ClusterRole, name: incidentd-read}
+subjects:
+  - {kind: ServiceAccount, name: incidentd, namespace: incidentd}

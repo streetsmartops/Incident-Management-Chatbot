@@ -1,0 +1,42 @@
+{
+  "context": "{\"key\": \"SYN-012\", \"title\": \"Catalog latency and DB CPU spike\", \"services\": [\"catalog\"], \"severity\": \"SEV2\", \"state\": \"investigating\"}",
+  "detectedAt": "2026-11-10T02:45:00Z",
+  "groundTruth": {
+    "keywords": [
+      [
+        "redis",
+        "cache"
+      ]
+    ],
+    "needsLabel": false,
+    "relevantTools": [
+      "search_logs",
+      "query_metric"
+    ],
+    "rootCause": "Redis cache outage causing cache stampede onto the database"
+  },
+  "id": "syn-012",
+  "recordings": {
+    "list_alerting_monitors": [
+      {
+        "output": "[{\"id\": \"9001\", \"name\": \"Synthetics: homepage\", \"state\": \"OK\"}]"
+      }
+    ],
+    "query_metric": [
+      {
+        "output": "[{\"metric\": \"postgresql.cpu\", \"max\": 98, \"avg\": 92}, {\"metric\": \"redis.net.clients\", \"last\": 0}]"
+      }
+    ],
+    "search_logs": [
+      {
+        "output": "[{\"message\": \"redis: connection refused 10.0.4.12:6379\", \"status\": \"error\"}]"
+      }
+    ]
+  },
+  "services": [
+    "catalog"
+  ],
+  "severity": 2,
+  "source": "synthetic",
+  "title": "Catalog latency and DB CPU spike"
+}

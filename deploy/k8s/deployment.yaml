@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: incidentd-config
+  namespace: incidentd
+data:
+  config.yaml: |
+    # Copy config/example.yaml here and fill in non-secret settings.
+    server: {listen: ":8080"}
+    database: {driver: postgres, schema: incident_bot}
+    slack: {enabled: true, announceChannelId: ""}
+    remediation: {catalogDir: /app/remediation/catalog}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: incidentd
+  namespace: incidentd
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: incidentd}
+  template:
+    metadata:
+      labels: {app: incidentd}
+    spec:
+      serviceAccountName: incidentd
+      automountServiceAccountToken: true
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: incidentd
+          image: ghcr.io/streetsmartops/incidentd:latest # pin a digest in production
+          args: ["serve", "-config", "/etc/incidentd/config.yaml"]
+          ports: [{containerPort: 8080, name: http}]
+          env:
+            # Each secret is read from a mounted file (NAME_FILE).
+            - {name: DATABASE_URL_FILE, value: /etc/incidentd/secrets/DATABASE_URL}
+            - {name: SLACK_BOT_TOKEN_FILE, value: /etc/incidentd/secrets/SLACK_BOT_TOKEN}
+            - {name: SLACK_SIGNING_SECRET_FILE, value: /etc/incidentd/secrets/SLACK_SIGNING_SECRET}
+            - {name: PAGERDUTY_API_TOKEN_FILE, value: /etc/incidentd/secrets/PAGERDUTY_API_TOKEN}
+            - {name: PAGERDUTY_WEBHOOK_SECRET_FILE, value: /etc/incidentd/secrets/PAGERDUTY_WEBHOOK_SECRET}
+            - {name: DATADOG_API_KEY_FILE, value: /etc/incidentd/secrets/DATADOG_API_KEY}
+            - {name: DATADOG_APP_KEY_FILE, value: /etc/incidentd/secrets/DATADOG_APP_KEY}
+            - {name: JIRA_API_TOKEN_FILE, value: /etc/incidentd/secrets/JIRA_API_TOKEN}
+            - {name: MULTIPLEXER_TOKEN_FILE, value: /etc/incidentd/secrets/MULTIPLEXER_TOKEN}
+            - {name: ANTHROPIC_API_KEY_FILE, value: /etc/incidentd/secrets/ANTHROPIC_API_KEY}
+            - {name: TEAMS_APP_PASSWORD_FILE, value: /etc/incidentd/secrets/TEAMS_APP_PASSWORD}
+            - {name: INCIDENTD_ADMIN_TOKEN_FILE, value: /etc/incidentd/secrets/INCIDENTD_ADMIN_TOKEN}
+            # Env half of the remediation kill switch. Keep "false" until the
+            # triage eval gate passes (docs/architecture.md §11).
+            - {name: REMEDIATION_ENABLED, value: "false"}
+          volumeMounts:
+            - {name: config, mountPath: /etc/incidentd, readOnly: true}
+            - {name: secrets, mountPath: /etc/incidentd/secrets, readOnly: true}
+          readinessProbe: {httpGet: {path: /readyz, port: http}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 20}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 512Mi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+      volumes:
+        - name: config
+          configMap: {name: incidentd-config}
+        - name: secrets
+          secret: {secretName: incidentd-secrets}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: incidentd
+  namespace: incidentd
+spec:
+  selector: {app: incidentd}
+  ports: [{port: 80, targetPort: http, name: http}]

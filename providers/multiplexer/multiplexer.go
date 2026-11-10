@@ -133,15 +133,15 @@ type guardrail struct {
 }
 
 type sloEvent struct {
-	ID                          int64      `json:"id"`
-	EventType                   string     `json:"event_type"`
-	PreviousStatus              *string    `json:"previous_status"`
-	NewStatus                   string     `json:"new_status"`
-	UptimePercent               *float64   `json:"uptime_percent"`
-	BurnRate                    *float64   `json:"burn_rate"`
-	ErrorBudgetRemainingPercent *float64   `json:"error_budget_remaining_percent"`
-	Message                     string     `json:"message"`
-	CreatedAt                   time.Time  `json:"created_at"`
+	ID                          int64     `json:"id"`
+	EventType                   string    `json:"event_type"`
+	PreviousStatus              *string   `json:"previous_status"`
+	NewStatus                   string    `json:"new_status"`
+	UptimePercent               *float64  `json:"uptime_percent"`
+	BurnRate                    *float64  `json:"burn_rate"`
+	ErrorBudgetRemainingPercent *float64  `json:"error_budget_remaining_percent"`
+	Message                     string    `json:"message"`
+	CreatedAt                   time.Time `json:"created_at"`
 }
 
 type tenant struct {
